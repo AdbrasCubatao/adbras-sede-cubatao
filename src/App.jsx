@@ -44,7 +44,30 @@ export default function App() {
     { id: 'missoes', nome: 'MISSÕES', sigla: 'Secretaria de Missões', icon: '🌍', descricao: 'Evangelismo e Projetos Missionários' },
   ];
 
-  // 3. ESTADO DA AGENDA DE EVENTOS
+  // 3. ESTADO DOS AVISOS OFICIAIS
+  const [avisos, setAvisos] = useState([
+    {
+      id: 1,
+      titulo: 'Ensaio Geral do Louvor',
+      categoria: 'Geral',
+      data: '22/10/2026',
+      conteudo: 'Convocamos todos os instrumentistas e vocais para o ensaio geral neste sábado às 16h no Templo Sede.',
+    },
+    {
+      id: 2,
+      titulo: 'Consagração do Círculo de Oração',
+      categoria: 'CIBEC',
+      data: '20/10/2026',
+      conteudo: 'Toda terça-feira pela manhã, às 08:30, temos nossa consagração de mulheres na Sede.',
+    },
+  ]);
+
+  // Form de criação de Aviso (Admin)
+  const [tituloAv, setTituloAv] = useState('');
+  const [categoriaAv, setCategoriaAv] = useState('Geral');
+  const [conteudoAv, setConteudoAv] = useState('');
+
+  // 4. ESTADO DA AGENDA
   const [eventos, setEventos] = useState([
     {
       id: 1,
@@ -53,22 +76,13 @@ export default function App() {
       horario: '19:30',
       local: 'Igreja Sede (Templo Principal)',
     },
-    {
-      id: 2,
-      nome: 'Grande Culto de Celebração em Família',
-      data: 'Todo Domingo',
-      horario: '18:00',
-      local: 'Igreja Sede',
-    },
   ]);
-
-  // Form de criação de Evento (Admin)
   const [nomeEv, setNomeEv] = useState('');
   const [dataEv, setDataEv] = useState('');
   const [horarioEv, setHorarioEv] = useState('');
   const [localEv, setLocalEv] = useState('');
 
-  // 4. ESTADO DOS PEDIDOS DE ORAÇÃO
+  // 5. ESTADO DOS PEDIDOS DE ORAÇÃO
   const [pedidos, setPedidos] = useState([
     {
       id: 1,
@@ -83,7 +97,7 @@ export default function App() {
   const [novoPedido, setNovoPedido] = useState('');
   const [isAnonimo, setIsAnonimo] = useState(false);
 
-  // 5. ESTADO DAS CONGREGAÇÕES E LOCALIZAÇÃO
+  // 6. ESTADO DAS CONGREGAÇÕES
   const [congregacoes, setCongregacoes] = useState([
     {
       id: 1,
@@ -114,28 +128,40 @@ export default function App() {
     }
   };
 
-  // Cadastrar Evento na Agenda
+  // Cadastrar e Remover Avisos
+  const handleAdicionarAviso = (e) => {
+    e.preventDefault();
+    if (!tituloAv || !conteudoAv) return;
+
+    const novoAvisoObj = {
+      id: Date.now(),
+      titulo: tituloAv,
+      categoria: categoriaAv,
+      data: new Date().toLocaleDateString('pt-BR'),
+      conteudo: conteudoAv,
+    };
+
+    setAvisos([novoAvisoObj, ...avisos]);
+    setTituloAv('');
+    setCategoriaAv('Geral');
+    setConteudoAv('');
+    alert('Aviso publicado com sucesso!');
+  };
+
+  const handleRemoverAviso = (id) => {
+    setAvisos(avisos.filter((a) => a.id !== id));
+  };
+
+  // Cadastrar e Remover Agenda
   const handleAdicionarEvento = (e) => {
     e.preventDefault();
     if (!nomeEv || !dataEv || !horarioEv || !localEv) return;
-
-    const novoEventoObj = {
-      id: Date.now(),
-      nome: nomeEv,
-      data: dataEv,
-      horario: horarioEv,
-      local: localEv,
-    };
-
+    const novoEventoObj = { id: Date.now(), nome: nomeEv, data: dataEv, horario: horarioEv, local: localEv };
     setEventos([...eventos, novoEventoObj]);
-    setNomeEv('');
-    setDataEv('');
-    setHorarioEv('');
-    setLocalEv('');
-    alert('Evento adicionado à agenda com sucesso!');
+    setNomeEv(''); setDataEv(''); setHorarioEv(''); setLocalEv('');
+    alert('Evento adicionado à agenda!');
   };
 
-  // Excluir Evento
   const handleRemoverEvento = (id) => {
     setEventos(eventos.filter((ev) => ev.id !== id));
   };
@@ -152,50 +178,27 @@ export default function App() {
       orou: true,
     };
     setPedidos([pedidoObjeto, ...pedidos]);
-    setNovoNome('');
-    setNovoPedido('');
-    setIsAnonimo(false);
+    setNovoNome(''); setNovoPedido(''); setIsAnonimo(false);
     alert('Seu pedido de oração foi publicado!');
   };
 
   const toggleOracao = (id) => {
-    setPedidos(
-      pedidos.map((item) => {
-        if (item.id === id) {
-          const jaOrou = item.orou;
-          return {
-            ...item,
-            oracoesCount: jaOrou ? item.oracoesCount - 1 : item.oracoesCount + 1,
-            orou: !jaOrou,
-          };
-        }
-        return item;
-      })
-    );
+    setPedidos(pedidos.map((item) => item.id === id ? { ...item, oracoesCount: item.orou ? item.oracoesCount - 1 : item.oracoesCount + 1, orou: !item.orou } : item));
   };
 
   const handleAdicionarCongregacao = (e) => {
     e.preventDefault();
     if (!novaNome || !novoEndereco) return;
-    const novaCong = {
-      id: Date.now(),
-      nome: novaNome,
-      endereco: novoEndereco,
-      pastor: novoPastor || 'A definir',
-      foto: novaFoto || 'https://via.placeholder.com/400x200?text=Fachada+Congregacao',
-    };
+    const novaCong = { id: Date.now(), nome: novaNome, endereco: novoEndereco, pastor: novoPastor || 'A definir', foto: novaFoto || 'https://via.placeholder.com/400x200?text=Fachada+Congregacao' };
     setCongregacoes([...congregacoes, novaCong]);
-    setNovaNome('');
-    setNovoEndereco('');
-    setNovoPastor('');
-    setNovaFoto('');
-    alert('Congregação cadastrada com sucesso!');
+    setNovaNome(''); setNovoEndereco(''); setNovoPastor(''); setNovaFoto('');
+    alert('Congregação cadastrada!');
   };
 
   return (
     <div className="min-h-screen bg-[#F4F5F7] text-slate-800 pb-20 font-sans">
       
-      {/* ================= 1. MENU PRINCIPAL (HOME) ================= */}
+      {/* ================= 1. HOME ================= */}
       {paginaAtual === 'home' && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-6">
           <section className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 flex items-start gap-4">
@@ -241,7 +244,44 @@ export default function App() {
         </main>
       )}
 
-      {/* ================= 2. PÁGINA AGENDA (ÁREA DOS MEMBROS) ================= */}
+      {/* ================= 2. PÁGINA AVISOS (MEMBROS) ================= */}
+      {paginaAtual === 'avisos' && (
+        <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
+          <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm hover:bg-slate-100 active:scale-95 transition-all">
+            ← Voltar ao Menu Principal
+          </button>
+
+          <div className="mb-2">
+            <h1 className="text-2xl font-bold text-slate-900">Mural de Avisos</h1>
+            <p className="text-xs text-slate-500">Comunicados importantes da ADBrás Sede Cubatão</p>
+            <div className="w-12 h-1 bg-amber-400 rounded-full mt-1.5"></div>
+          </div>
+
+          <div className="space-y-3">
+            {avisos.length === 0 ? (
+              <div className="bg-white p-6 rounded-3xl text-center space-y-2">
+                <span className="text-3xl">📢</span>
+                <p className="text-xs text-slate-500 font-semibold">Nenhum aviso publicado recentemente.</p>
+              </div>
+            ) : (
+              avisos.map((av) => (
+                <div key={av.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 space-y-2">
+                  <div className="flex items-center justify-between border-b pb-2 border-slate-50">
+                    <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full uppercase">
+                      {av.categoria}
+                    </span>
+                    <span className="text-[10px] text-slate-400">{av.data}</span>
+                  </div>
+                  <h3 className="font-bold text-sm text-slate-900">{av.titulo}</h3>
+                  <p className="text-xs text-slate-600 leading-relaxed">{av.conteudo}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </main>
+      )}
+
+      {/* ================= 3. PÁGINA AGENDA ================= */}
       {paginaAtual === 'agenda' && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm hover:bg-slate-100 active:scale-95 transition-all">
@@ -255,217 +295,97 @@ export default function App() {
           </div>
 
           <div className="space-y-3">
-            {eventos.length === 0 ? (
-              <div className="bg-white p-6 rounded-3xl text-center space-y-2">
-                <span className="text-3xl">📅</span>
-                <p className="text-xs text-slate-500 font-semibold">Nenhum evento agendado no momento.</p>
-              </div>
-            ) : (
-              eventos.map((ev) => (
-                <div key={ev.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 space-y-2">
-                  <div className="flex items-start justify-between border-b pb-2 border-slate-50">
-                    <h3 className="font-bold text-sm text-slate-900">{ev.nome}</h3>
-                    <span className="text-[10px] font-black bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full uppercase">
-                      AGENDA
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 pt-1">
-                    <div className="flex items-center gap-1.5">
-                      <span>📅</span>
-                      <span className="font-semibold">{ev.data}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span>⏰</span>
-                      <span className="font-semibold">{ev.horario}</span>
-                    </div>
-                  </div>
-
-                  <div className="text-xs text-slate-600 flex items-center gap-1.5 pt-1 border-t border-slate-50">
-                    <span>📍</span>
-                    <span className="truncate font-medium">{ev.local}</span>
-                  </div>
+            {eventos.map((ev) => (
+              <div key={ev.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 space-y-2">
+                <div className="flex items-start justify-between border-b pb-2 border-slate-50">
+                  <h3 className="font-bold text-sm text-slate-900">{ev.nome}</h3>
+                  <span className="text-[10px] font-black bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full uppercase">AGENDA</span>
                 </div>
-              ))
-            )}
+                <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 pt-1">
+                  <div>📅 <span className="font-semibold">{ev.data}</span></div>
+                  <div>⏰ <span className="font-semibold">{ev.horario}</span></div>
+                </div>
+                <div className="text-xs text-slate-600 pt-1 border-t border-slate-50">📍 <span className="font-medium">{ev.local}</span></div>
+              </div>
+            ))}
           </div>
         </main>
       )}
 
-      {/* ================= 3. PÁGINA DÍZIMOS E OFERTAS ================= */}
+      {/* ================= 4. DÍZIMOS E OFERTAS ================= */}
       {paginaAtual === 'ofertas' && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm hover:bg-slate-100 active:scale-95 transition-all">
             ← Voltar ao Menu Principal
           </button>
-
           <div className="bg-[#0B1E3B] text-white p-6 rounded-3xl shadow-md text-center space-y-2">
             <span className="text-4xl">💖</span>
             <h1 className="text-xl font-bold">Dízimos e Ofertas</h1>
-            <p className="text-xs text-slate-200 leading-relaxed italic">
-              "Cada um contribua segundo proferiu no seu coração; não com tristeza, ou por necessidade; porque Deus ama ao que dá com alegria." — 2 Co 9:7
-            </p>
+            <p className="text-xs text-slate-200 leading-relaxed italic">"Cada um contribua segundo proferiu no seu coração..." — 2 Co 9:7</p>
           </div>
-
           <section className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 text-center space-y-5">
-            <div className="space-y-2">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Escaneie o QR Code com o App do seu Banco</span>
-              <div className="w-48 h-48 mx-auto p-3 bg-white border-2 border-slate-100 rounded-2xl shadow-inner flex items-center justify-center">
-                <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${dadosPix.cnpj}`} 
-                  alt="QR Code Pix" 
-                  className="w-full h-full object-contain"
-                />
-              </div>
+            <div className="w-48 h-48 mx-auto p-3 bg-white border-2 border-slate-100 rounded-2xl shadow-inner flex items-center justify-center">
+              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${dadosPix.cnpj}`} alt="QR Code Pix" className="w-full h-full object-contain" />
             </div>
-
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-left space-y-2.5">
-              <div>
-                <span className="text-[10px] font-bold text-amber-600 uppercase block">Chave PIX (CNPJ)</span>
-                <p className="text-base font-mono font-bold text-slate-900">{dadosPix.cnpj}</p>
-              </div>
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">Favorecido</span>
-                <p className="text-xs font-semibold text-slate-800 leading-snug">{dadosPix.favorecido}</p>
-              </div>
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">Banco</span>
-                <p className="text-xs font-semibold text-slate-800">{dadosPix.banco}</p>
-              </div>
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-left space-y-2">
+              <div><span className="text-[10px] font-bold text-amber-600 uppercase block">Chave PIX (CNPJ)</span><p className="text-base font-mono font-bold text-slate-900">{dadosPix.cnpj}</p></div>
+              <div><span className="text-[10px] font-bold text-slate-400 uppercase block">Favorecido</span><p className="text-xs font-semibold text-slate-800">{dadosPix.favorecido}</p></div>
+              <div><span className="text-[10px] font-bold text-slate-400 uppercase block">Banco</span><p className="text-xs font-semibold text-slate-800">{dadosPix.banco}</p></div>
             </div>
-
-            <button 
-              onClick={copiarPix}
-              className={`w-full py-3.5 rounded-xl text-xs font-bold shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 ${
-                pixCopiado 
-                  ? 'bg-emerald-600 text-white' 
-                  : 'bg-[#0B1E3B] text-white hover:bg-slate-800'
-              }`}
-            >
-              <span>{pixCopiado ? '✓' : '📋'}</span>
-              <span>{pixCopiado ? 'Chave CNPJ Copiada com Sucesso!' : 'Copiar Chave PIX (CNPJ)'}</span>
+            <button onClick={copiarPix} className={`w-full py-3.5 rounded-xl text-xs font-bold shadow-md transition-all ${pixCopiado ? 'bg-emerald-600 text-white' : 'bg-[#0B1E3B] text-white'}`}>
+              {pixCopiado ? '✓ Chave CNPJ Copiada com Sucesso!' : '📋 Copiar Chave PIX (CNPJ)'}
             </button>
           </section>
         </main>
       )}
 
-      {/* ================= 4. PÁGINA PEDIDOS DE ORAÇÃO ================= */}
+      {/* ================= 5. PEDIDOS DE ORAÇÃO ================= */}
       {paginaAtual === 'oracao' && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-6">
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm hover:bg-slate-100 active:scale-95 transition-all">
             ← Voltar ao Menu Principal
           </button>
-
           <div className="bg-[#0B1E3B] text-white p-6 rounded-3xl shadow-md text-center space-y-2">
             <span className="text-4xl">🙏</span>
             <h1 className="text-xl font-bold">Mural de Pedidos de Oração</h1>
-            <p className="text-xs text-slate-200 leading-relaxed">"Orai uns pelos outros para que sereis curados." — Tiago 5:16</p>
           </div>
-
           <section className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 space-y-4">
-            <h2 className="text-base font-bold text-slate-900 border-b pb-2 border-slate-100">Deixe seu Pedido de Oração</h2>
             <form onSubmit={handleAdicionarPedido} className="space-y-3">
-              <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Seu Nome (Opcional)</label>
-                <input type="text" placeholder="Ex: Maria Oliveira" disabled={isAnonimo} value={novoNome} onChange={(e) => setNovoNome(e.target.value)} className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none disabled:opacity-50" />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input type="checkbox" id="anonimo" checked={isAnonimo} onChange={(e) => setIsAnonimo(e.target.checked)} className="rounded text-amber-500" />
-                <label htmlFor="anonimo" className="text-xs text-slate-600 select-none">Quero publicar como **Anônimo**</label>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Seu Motivo de Oração *</label>
-                <textarea rows="3" required placeholder="Descreva seu pedido aqui..." value={novoPedido} onChange={(e) => setNovoPedido(e.target.value)} className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none"></textarea>
-              </div>
-
-              <button type="submit" className="w-full bg-[#0B1E3B] text-white py-3 rounded-xl font-bold text-xs shadow-md active:scale-95 transition-all">Publicar Pedido de Oração</button>
+              <input type="text" placeholder="Seu Nome (Opcional)" disabled={isAnonimo} value={novoNome} onChange={(e) => setNovoNome(e.target.value)} className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none" />
+              <textarea rows="3" required placeholder="Descreva seu pedido aqui..." value={novoPedido} onChange={(e) => setNovoPedido(e.target.value)} className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none"></textarea>
+              <button type="submit" className="w-full bg-[#0B1E3B] text-white py-3 rounded-xl font-bold text-xs shadow-md">Publicar Pedido de Oração</button>
             </form>
           </section>
-
           <section className="space-y-3">
-            <h2 className="text-sm font-bold text-slate-900 px-1">Pedidos da Igreja ({pedidos.length})</h2>
-            <div className="space-y-3">
-              {pedidos.map((item) => (
-                <div key={item.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 space-y-3">
-                  <div className="flex items-center justify-between border-b pb-2 border-slate-50">
-                    <span className="text-xs font-bold text-slate-800">{item.nome}</span>
-                    <span className="text-[10px] text-slate-400">{item.data}</span>
-                  </div>
-                  <p className="text-xs text-slate-700 leading-relaxed italic">"{item.pedido}"</p>
-                  <div className="pt-1 flex items-center justify-between">
-                    <button onClick={() => toggleOracao(item.id)} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${item.orou ? 'bg-amber-400 text-slate-950' : 'bg-slate-100 text-slate-600'}`}>
-                      <span>🙏</span>
-                      <span>{item.orou ? 'Estou Orando' : 'Apoiar em Oração'}</span>
-                    </button>
-                    <span className="text-[11px] font-semibold text-slate-500">{item.oracoesCount} {item.oracoesCount === 1 ? 'irmão orando' : 'irmãos orando'}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+            {pedidos.map((item) => (
+              <div key={item.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 space-y-3">
+                <p className="text-xs text-slate-700 italic">"{item.pedido}"</p>
+                <button onClick={() => toggleOracao(item.id)} className={`px-3 py-1.5 rounded-full text-xs font-bold ${item.orou ? 'bg-amber-400 text-slate-950' : 'bg-slate-100 text-slate-600'}`}>
+                  🙏 {item.orou ? 'Estou Orando' : 'Apoiar em Oração'} ({item.oracoesCount})
+                </button>
+              </div>
+            ))}
           </section>
         </main>
       )}
 
-      {/* ================= 5. PÁGINA LOCALIZAÇÃO ================= */}
+      {/* ================= 6. LOCALIZAÇÃO ================= */}
       {paginaAtual === 'localizacao' && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-6">
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm hover:bg-slate-100 active:scale-95 transition-all">
             ← Voltar ao Menu Principal
           </button>
-
-          <div className="mb-2">
-            <h1 className="text-2xl font-bold text-slate-900">Nossas Igrejas</h1>
-            <p className="text-xs text-slate-500">Sede e Congregações no município de Cubatão - SP</p>
-            <div className="w-12 h-1 bg-amber-400 rounded-full mt-1.5"></div>
-          </div>
-
-          <section className="bg-white rounded-3xl shadow-md border-2 border-amber-400 overflow-hidden relative">
-            <span className="absolute top-3 right-3 bg-amber-400 text-slate-950 text-[9px] font-black px-2.5 py-1 rounded-full uppercase">IGREJA SEDE</span>
-            <div className="h-44 bg-slate-200 overflow-hidden">
-              <img src="https://images.unsplash.com/photo-1548625361-00021c181512?auto=format&fit=crop&q=80&w=600" alt="Sede" className="w-full h-full object-cover" />
-            </div>
-            <div className="p-5 space-y-3">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">ADBrás Sede Cubatão</h2>
-                <p className="text-xs font-semibold text-slate-600 mt-0.5">Rua Agostinho Lourenço Vilete, nº 125 - Jd. Nvª República, Cubatão - SP</p>
-              </div>
-              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex items-center gap-3">
-                <span className="text-2xl">👤</span>
-                <div>
-                  <p className="text-[10px] font-bold text-amber-600 uppercase">Pastores Presidentes</p>
-                  <p className="text-xs font-bold text-slate-800">Pr. Edson Carlos da Silva & Missª. Solange</p>
-                </div>
-              </div>
-              <a href="https://maps.google.com/?q=Rua+Agostinho+Lourenco+Vilete+125+Jardim+Nova+Republica+Cubatao+SP" target="_blank" rel="noreferrer" className="w-full bg-[#0B1E3B] text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm">
-                📍 Ver Rota no Google Maps
-              </a>
-            </div>
-          </section>
-
-          <section className="space-y-4 pt-2">
-            <h2 className="text-base font-bold text-slate-900">Congregações ({congregacoes.length} de 18)</h2>
-            <div className="space-y-4">
-              {congregacoes.map((cong) => (
-                <div key={cong.id} className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                  <div className="h-32 bg-slate-100 overflow-hidden">
-                    <img src={cong.foto} alt={cong.nome} className="w-full h-full object-cover" />
-                  </div>
-                  <div className="p-4 space-y-2">
-                    <h3 className="font-bold text-sm text-slate-900">{cong.nome}</h3>
-                    <p className="text-xs text-slate-600">📍 {cong.endereco}</p>
-                    <p className="text-xs text-slate-700 font-semibold pt-1 border-t border-slate-50">Pastor Dirigente: <span className="text-amber-700">{cong.pastor}</span></p>
-                  </div>
-                </div>
-              ))}
-            </div>
+          <div className="mb-2"><h1 className="text-2xl font-bold text-slate-900">Nossas Igrejas</h1></div>
+          <section className="bg-white rounded-3xl shadow-md border-2 border-amber-400 overflow-hidden relative p-5 space-y-3">
+            <h2 className="text-lg font-bold text-slate-900">ADBrás Sede Cubatão</h2>
+            <p className="text-xs text-slate-600">Rua Agostinho Lourenço Vilete, nº 125 - Jd. Nvª República, Cubatão - SP</p>
+            <a href="https://maps.google.com/?q=Rua+Agostinho+Lourenco+Vilete+125+Jardim+Nova+Republica+Cubatao+SP" target="_blank" rel="noreferrer" className="w-full bg-[#0B1E3B] text-white py-2.5 rounded-xl text-xs font-bold block text-center">📍 Ver Rota no Google Maps</a>
           </section>
         </main>
       )}
 
-      {/* ================= 6. PÁGINA DEPARTAMENTOS ================= */}
-      {paginaAtual === 'departamentos' && !departamentoSelecionado && (
+      {/* ================= 7. DEPARTAMENTOS ================= */}
+      {paginaAtual === 'departamentos' && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">
             ← Voltar ao Menu Principal
@@ -473,36 +393,15 @@ export default function App() {
           <div className="space-y-3">
             <h2 className="text-xl font-bold text-slate-900">Departamentos</h2>
             {departamentos.map((dept) => (
-              <button key={dept.id} onClick={() => setDepartamentoSelecionado(dept)} className="w-full bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between text-left">
-                <div className="flex items-center gap-3">
-                  <span className="text-3xl bg-slate-50 p-2 rounded-xl">{dept.icon}</span>
-                  <div>
-                    <h3 className="font-bold text-sm text-slate-900">{dept.nome}</h3>
-                    <p className="text-xs text-slate-500">{dept.sigla}</p>
-                  </div>
-                </div>
-                <span className="text-slate-400 text-sm">➔</span>
-              </button>
+              <div key={dept.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+                <div><h3 className="font-bold text-sm text-slate-900">{dept.nome}</h3><p className="text-xs text-slate-500">{dept.sigla}</p></div>
+              </div>
             ))}
           </div>
         </main>
       )}
 
-      {paginaAtual === 'departamentos' && departamentoSelecionado && (
-        <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
-          <button onClick={() => setDepartamentoSelecionado(null)} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">
-            ← Voltar aos Departamentos
-          </button>
-          <div className="bg-white p-6 rounded-3xl shadow-sm text-center space-y-3">
-            <span className="text-5xl">{departamentoSelecionado.icon}</span>
-            <h2 className="text-xl font-bold text-slate-900">{departamentoSelecionado.nome}</h2>
-            <p className="text-xs text-amber-600 font-bold">{departamentoSelecionado.sigla}</p>
-            <p className="text-xs text-slate-600">{departamentoSelecionado.descricao}</p>
-          </div>
-        </main>
-      )}
-
-      {/* ================= 7. PÁGINA ÁREA ADMIN ================= */}
+      {/* ================= 8. ÁREA ADMIN (GERENCIAMENTO COMPLETO) ================= */}
       {paginaAtual === 'admin' && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">
@@ -513,9 +412,8 @@ export default function App() {
             <div className="bg-white p-6 rounded-3xl shadow-sm space-y-4 text-center">
               <span className="text-4xl">🔐</span>
               <h2 className="text-lg font-bold text-slate-900">Painel do Administrador</h2>
-              <p className="text-xs text-slate-500">Acesso restrito para gerenciamento da igreja.</p>
               <form onSubmit={handleLoginAdmin} className="space-y-3 pt-2">
-                <input type="password" placeholder="Digite a senha de acesso" value={senhaAdmin} onChange={(e) => setSenhaAdmin(e.target.value)} className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-center font-bold" />
+                <input type="password" placeholder="Digite a senha de acesso" value={senhaAdmin} onChange={(e) => setSenhaAdmin(e.target.value)} className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl text-center font-bold" />
                 <button type="submit" className="w-full bg-[#0B1E3B] text-white py-3 rounded-xl font-bold text-xs shadow-md">Entrar no Painel</button>
               </form>
             </div>
@@ -529,33 +427,42 @@ export default function App() {
                 <button onClick={() => setAdminLogado(false)} className="text-xs text-red-600 font-bold bg-red-50 px-2.5 py-1 rounded-lg">Sair</button>
               </div>
 
-              {/* GESTÃO DA AGENDA DE EVENTOS (NOVO NO ADMIN) */}
+              {/* PAINEL: GERENCIAR AVISOS */}
               <section className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-3">
                 <div className="border-b pb-2 border-slate-100">
-                  <span className="text-[9px] font-black text-amber-600 uppercase">Agenda Oficial</span>
-                  <h3 className="text-sm font-bold text-slate-900">Adicionar Evento na Agenda</h3>
+                  <span className="text-[9px] font-black text-amber-600 uppercase">Avisos Oficiais</span>
+                  <h3 className="text-sm font-bold text-slate-900">Publicar Novo Aviso</h3>
                 </div>
 
-                <form onSubmit={handleAdicionarEvento} className="space-y-2.5">
-                  <input type="text" placeholder="Nome do Evento (Ex: Congresso de Jovens)" value={nomeEv} onChange={(e) => setNomeEv(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
-                  <div className="grid grid-cols-2 gap-2">
-                    <input type="text" placeholder="Data (Ex: 25 de Outubro)" value={dataEv} onChange={(e) => setDataEv(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
-                    <input type="text" placeholder="Horário (Ex: 19:30)" value={horarioEv} onChange={(e) => setHorarioEv(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
-                  </div>
-                  <input type="text" placeholder="Local (Ex: Igreja Sede Cubatão)" value={localEv} onChange={(e) => setLocalEv(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
-                  <button type="submit" className="w-full bg-[#0B1E3B] text-white py-2.5 rounded-xl font-bold text-xs shadow-sm active:scale-95 transition-all">+ Publicar Evento</button>
+                <form onSubmit={handleAdicionarAviso} className="space-y-2.5">
+                  <input type="text" placeholder="Título do Aviso (Ex: Ensaio de Louvor)" value={tituloAv} onChange={(e) => setTituloAv(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
+                  
+                  <select value={categoriaAv} onChange={(e) => setCategoriaAv(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-semibold text-slate-700">
+                    <option value="Geral">Geral (Toda a Igreja)</option>
+                    <option value="UJADEMC">UJADEMC (Jovens)</option>
+                    <option value="MINIDEMC">MINIDEMC (Crianças)</option>
+                    <option value="GERAÇÃO TEEN">GERAÇÃO TEEN (Adolescentes)</option>
+                    <option value="CIBEC">CIBEC (Mulheres)</option>
+                    <option value="UNIVADEM">UNIVADEM (Homens)</option>
+                    <option value="DIACONAL">DIACONAL</option>
+                    <option value="MISSÕES">MISSÕES</option>
+                  </select>
+
+                  <textarea rows="3" placeholder="Escreva o comunicado completo..." value={conteudoAv} onChange={(e) => setConteudoAv(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" required></textarea>
+                  
+                  <button type="submit" className="w-full bg-[#0B1E3B] text-white py-2.5 rounded-xl font-bold text-xs shadow-sm active:scale-95 transition-all">+ Publicar Aviso</button>
                 </form>
 
-                {/* Lista e Exclusão de Eventos Cadastrados */}
+                {/* Exclusão de Avisos */}
                 <div className="pt-2 border-t border-slate-100 space-y-2">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Eventos na Agenda ({eventos.length})</span>
-                  {eventos.map((ev) => (
-                    <div key={ev.id} className="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs">
-                      <div>
-                        <p className="font-bold text-slate-900">{ev.nome}</p>
-                        <p className="text-[10px] text-slate-500">{ev.data} às {ev.horario}</p>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">Avisos Ativos ({avisos.length})</span>
+                  {avisos.map((av) => (
+                    <div key={av.id} className="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs">
+                      <div className="truncate pr-2">
+                        <p className="font-bold text-slate-900 truncate">{av.titulo}</p>
+                        <span className="text-[9px] text-amber-700 font-bold">{av.categoria}</span>
                       </div>
-                      <button onClick={() => handleRemoverEvento(ev.id)} className="text-red-600 font-bold text-[10px] bg-red-50 px-2 py-1 rounded-lg">
+                      <button onClick={() => handleRemoverAviso(av.id)} className="text-red-600 font-bold text-[10px] bg-red-50 px-2 py-1 rounded-lg flex-shrink-0">
                         Excluir
                       </button>
                     </div>
@@ -563,26 +470,52 @@ export default function App() {
                 </div>
               </section>
 
-              {/* GESTÃO DE CONGREGAÇÕES */}
+              {/* PAINEL: GERENCIAR AGENDA */}
+              <section className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-3">
+                <div className="border-b pb-2 border-slate-100">
+                  <span className="text-[9px] font-black text-amber-600 uppercase">Agenda Oficial</span>
+                  <h3 className="text-sm font-bold text-slate-900">Adicionar Evento na Agenda</h3>
+                </div>
+                <form onSubmit={handleAdicionarEvento} className="space-y-2.5">
+                  <input type="text" placeholder="Nome do Evento" value={nomeEv} onChange={(e) => setNomeEv(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input type="text" placeholder="Data" value={dataEv} onChange={(e) => setDataEv(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
+                    <input type="text" placeholder="Horário" value={horarioEv} onChange={(e) => setHorarioEv(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
+                  </div>
+                  <input type="text" placeholder="Local" value={localEv} onChange={(e) => setLocalEv(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
+                  <button type="submit" className="w-full bg-[#0B1E3B] text-white py-2.5 rounded-xl font-bold text-xs shadow-sm">+ Publicar Evento</button>
+                </form>
+                <div className="pt-2 border-t border-slate-100 space-y-2">
+                  {eventos.map((ev) => (
+                    <div key={ev.id} className="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs">
+                      <div><p className="font-bold text-slate-900">{ev.nome}</p></div>
+                      <button onClick={() => handleRemoverEvento(ev.id)} className="text-red-600 font-bold text-[10px] bg-red-50 px-2 py-1 rounded-lg">Excluir</button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* PAINEL: GERENCIAR CONGREGAÇÕES */}
               <section className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-3">
                 <div className="border-b pb-2 border-slate-100">
                   <span className="text-[9px] font-black text-amber-600 uppercase">Gestão de Igrejas</span>
                   <h3 className="text-sm font-bold text-slate-900">Cadastrar Nova Congregação</h3>
                 </div>
                 <form onSubmit={handleAdicionarCongregacao} className="space-y-2.5">
-                  <input type="text" placeholder="Nome da Congregação (Ex: Vila Natal)" value={novaNome} onChange={(e) => setNovaNome(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
-                  <input type="text" placeholder="Endereço completo (Rua, Nº, Bairro)" value={novoEndereco} onChange={(e) => setNovoEndereco(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
-                  <input type="text" placeholder="Nome do Pastor Dirigente" value={novoPastor} onChange={(e) => setNovoPastor(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" />
-                  <input type="text" placeholder="URL da Foto da Fachada" value={novaFoto} onChange={(e) => setNovaFoto(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" />
-                  <button type="submit" className="w-full bg-emerald-600 text-white py-2.5 rounded-xl font-bold text-xs shadow-sm hover:bg-emerald-700 active:scale-95 transition-all">+ Adicionar Congregação</button>
+                  <input type="text" placeholder="Nome da Congregação" value={novaNome} onChange={(e) => setNovaNome(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
+                  <input type="text" placeholder="Endereço completo" value={novoEndereco} onChange={(e) => setNovoEndereco(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
+                  <input type="text" placeholder="Pastor Dirigente" value={novoPastor} onChange={(e) => setNovoPastor(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" />
+                  <input type="text" placeholder="URL da Foto" value={novaFoto} onChange={(e) => setNovaFoto(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" />
+                  <button type="submit" className="w-full bg-emerald-600 text-white py-2.5 rounded-xl font-bold text-xs shadow-sm">+ Adicionar Congregação</button>
                 </form>
               </section>
+
             </div>
           )}
         </main>
       )}
 
-      {/* ================= 8. DEMAIS PÁGINAS (CULTOS, ETC) ================= */}
+      {/* ================= 9. CULTOS E DEMAIS ================= */}
       {paginaAtual === 'cultos' && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">
@@ -597,7 +530,7 @@ export default function App() {
         </main>
       )}
 
-      {['biblia', 'avisos', 'ebd', 'louvores', 'contatos'].includes(paginaAtual) && (
+      {['biblia', 'ebd', 'louvores', 'contatos'].includes(paginaAtual) && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">
             ← Voltar ao Menu Principal
