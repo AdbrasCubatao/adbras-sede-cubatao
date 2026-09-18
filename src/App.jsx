@@ -6,6 +6,13 @@ export default function App() {
   const [departamentoSelecionado, setDepartamentoSelecionado] = useState(null);
   const [pixCopiado, setPixCopiado] = useState(false);
 
+  // Dados Oficiais do PIX da Igreja
+  const dadosPix = {
+    cnpj: "50.317.711/0001-62",
+    banco: "Banco Cora SCD S.A.",
+    favorecido: "Igreja Evangélica Assembléia de Deus - Ministério de Madureira Em Cubatão - Sp"
+  };
+
   // Estados do Admin
   const [adminLogado, setAdminLogado] = useState(false);
   const [senhaAdmin, setSenhaAdmin] = useState('');
@@ -77,7 +84,7 @@ export default function App() {
 
   // Funções Auxiliares
   const copiarPix = () => {
-    navigator.clipboard.writeText("00.000.000/0001-00");
+    navigator.clipboard.writeText(dadosPix.cnpj);
     setPixCopiado(true);
     setTimeout(() => setPixCopiado(false), 3000);
   };
@@ -192,7 +199,69 @@ export default function App() {
         </main>
       )}
 
-      {/* ================= 2. PÁGINA PEDIDOS DE ORAÇÃO ================= */}
+      {/* ================= 2. PÁGINA DÍZIMOS E OFERTAS (NOVA) ================= */}
+      {paginaAtual === 'ofertas' && (
+        <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
+          <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm hover:bg-slate-100 active:scale-95 transition-all">
+            ← Voltar ao Menu Principal
+          </button>
+
+          <div className="bg-[#0B1E3B] text-white p-6 rounded-3xl shadow-md text-center space-y-2">
+            <span className="text-4xl">💖</span>
+            <h1 className="text-xl font-bold">Dízimos e Ofertas</h1>
+            <p className="text-xs text-slate-200 leading-relaxed italic">
+              "Cada um contribua segundo proferiu no seu coração; não com tristeza, ou por necessidade; porque Deus ama ao que dá com alegria." — 2 Co 9:7
+            </p>
+          </div>
+
+          <section className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 text-center space-y-5">
+            {/* QR Code Gerado Automaticamente */}
+            <div className="space-y-2">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Escaneie o QR Code com o App do seu Banco</span>
+              <div className="w-48 h-48 mx-auto p-3 bg-white border-2 border-slate-100 rounded-2xl shadow-inner flex items-center justify-center">
+                <img 
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${dadosPix.cnpj}`} 
+                  alt="QR Code Pix Igreja" 
+                  className="w-full h-full object-contain"
+                />
+              </div>
+            </div>
+
+            {/* Informações da Conta */}
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-left space-y-2.5">
+              <div>
+                <span className="text-[10px] font-bold text-amber-600 uppercase block">Chave PIX (CNPJ)</span>
+                <p className="text-base font-mono font-bold text-slate-900">{dadosPix.cnpj}</p>
+              </div>
+
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">Favorecido</span>
+                <p className="text-xs font-semibold text-slate-800 leading-snug">{dadosPix.favorecido}</p>
+              </div>
+
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">Banco</span>
+                <p className="text-xs font-semibold text-slate-800">{dadosPix.banco}</p>
+              </div>
+            </div>
+
+            {/* Botão de Copiar Chave PIX */}
+            <button 
+              onClick={copiarPix}
+              className={`w-full py-3.5 rounded-xl text-xs font-bold shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 ${
+                pixCopiado 
+                  ? 'bg-emerald-600 text-white' 
+                  : 'bg-[#0B1E3B] text-white hover:bg-slate-800'
+              }`}
+            >
+              <span>{pixCopiado ? '✓' : '📋'}</span>
+              <span>{pixCopiado ? 'Chave CNPJ Copiada com Sucesso!' : 'Copiar Chave PIX (CNPJ)'}</span>
+            </button>
+          </section>
+        </main>
+      )}
+
+      {/* ================= 3. PÁGINA PEDIDOS DE ORAÇÃO ================= */}
       {paginaAtual === 'oracao' && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-6">
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm hover:bg-slate-100 active:scale-95 transition-all">
@@ -251,7 +320,7 @@ export default function App() {
         </main>
       )}
 
-      {/* ================= 3. PÁGINA LOCALIZAÇÃO (VISÃO DOS MEMBROS) ================= */}
+      {/* ================= 4. PÁGINA LOCALIZAÇÃO ================= */}
       {paginaAtual === 'localizacao' && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-6">
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm hover:bg-slate-100 active:scale-95 transition-all">
@@ -264,7 +333,6 @@ export default function App() {
             <div className="w-12 h-1 bg-amber-400 rounded-full mt-1.5"></div>
           </div>
 
-          {/* Destaque da Sede */}
           <section className="bg-white rounded-3xl shadow-md border-2 border-amber-400 overflow-hidden relative">
             <span className="absolute top-3 right-3 bg-amber-400 text-slate-950 text-[9px] font-black px-2.5 py-1 rounded-full uppercase">IGREJA SEDE</span>
             <div className="h-44 bg-slate-200 overflow-hidden">
@@ -288,7 +356,6 @@ export default function App() {
             </div>
           </section>
 
-          {/* Lista de Congregações */}
           <section className="space-y-4 pt-2">
             <h2 className="text-base font-bold text-slate-900">Congregações ({congregacoes.length} de 18)</h2>
             <div className="space-y-4">
@@ -309,7 +376,7 @@ export default function App() {
         </main>
       )}
 
-      {/* ================= 4. PÁGINA DEPARTAMENTOS ================= */}
+      {/* ================= 5. PÁGINA DEPARTAMENTOS ================= */}
       {paginaAtual === 'departamentos' && !departamentoSelecionado && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">
@@ -347,7 +414,7 @@ export default function App() {
         </main>
       )}
 
-      {/* ================= 5. PÁGINA ÁREA ADMIN (CADASTRO EXCLUSIVO AQUI) ================= */}
+      {/* ================= 6. PÁGINA ÁREA ADMIN ================= */}
       {paginaAtual === 'admin' && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">
@@ -374,7 +441,6 @@ export default function App() {
                 <button onClick={() => setAdminLogado(false)} className="text-xs text-red-600 font-bold bg-red-50 px-2.5 py-1 rounded-lg">Sair</button>
               </div>
 
-              {/* FORMULÁRIO EXCLUSIVO DO ADMIN PARA CADASTRAR CONGREGAÇÃO */}
               <section className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-3">
                 <div className="border-b pb-2 border-slate-100">
                   <span className="text-[9px] font-black text-amber-600 uppercase">Gestão de Igrejas</span>
@@ -388,17 +454,12 @@ export default function App() {
                   <button type="submit" className="w-full bg-emerald-600 text-white py-2.5 rounded-xl font-bold text-xs shadow-sm hover:bg-emerald-700 active:scale-95 transition-all">+ Adicionar Congregação</button>
                 </form>
               </section>
-
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <button className="p-3 bg-white border border-slate-200 rounded-2xl font-bold text-slate-800 text-left shadow-sm">📢 Gerenciar Avisos</button>
-                <button className="p-3 bg-white border border-slate-200 rounded-2xl font-bold text-slate-800 text-left shadow-sm">📅 Editar Agenda</button>
-              </div>
             </div>
           )}
         </main>
       )}
 
-      {/* ================= 6. DEMAIS PÁGINAS (CULTOS, OFERTAS, ETC) ================= */}
+      {/* ================= 7. DEMAIS PÁGINAS (CULTOS, AGENDA, ETC) ================= */}
       {paginaAtual === 'cultos' && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">
@@ -408,23 +469,6 @@ export default function App() {
             <h2 className="text-lg font-bold text-slate-900">Cultos e Transmissões</h2>
             <div className="aspect-video bg-slate-900 rounded-2xl flex items-center justify-center text-white text-xs">
               <a href="https://youtube.com" target="_blank" rel="noreferrer" className="bg-red-600 text-white px-4 py-2 rounded-xl font-bold">▶ Assistir no YouTube</a>
-            </div>
-          </div>
-        </main>
-      )}
-
-      {paginaAtual === 'ofertas' && (
-        <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
-          <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">
-            ← Voltar ao Menu Principal
-          </button>
-          <div className="bg-white p-5 rounded-3xl shadow-sm text-center space-y-4">
-            <span className="text-4xl">💖</span>
-            <h2 className="text-lg font-bold text-slate-900">Dízimos e Ofertas</h2>
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2">
-              <span className="text-[10px] font-bold text-amber-600 uppercase">Chave PIX (CNPJ)</span>
-              <p className="text-sm font-mono font-bold text-slate-800">00.000.000/0001-00</p>
-              <button onClick={copiarPix} className="w-full bg-emerald-500 text-white py-2 rounded-xl text-xs font-bold">{pixCopiado ? '✓ Chave Pix Copiada!' : '📋 Copiar Chave Pix'}</button>
             </div>
           </div>
         </main>
