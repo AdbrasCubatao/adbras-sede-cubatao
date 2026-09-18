@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
 export default function App() {
-  // Estado de Navegação Central ('home', 'oracao', 'localizacao', 'departamentos', 'admin', 'cultos', 'ofertas', etc.)
+  // Estado de Navegação Central
   const [paginaAtual, setPaginaAtual] = useState('home');
   const [departamentoSelecionado, setDepartamentoSelecionado] = useState(null);
   const [pixCopiado, setPixCopiado] = useState(false);
@@ -140,7 +140,7 @@ export default function App() {
     setNovoEndereco('');
     setNovoPastor('');
     setNovaFoto('');
-    alert('Congregação cadastrada!');
+    alert('Congregação cadastrada com sucesso!');
   };
 
   return (
@@ -149,7 +149,6 @@ export default function App() {
       {/* ================= 1. MENU PRINCIPAL (HOME) ================= */}
       {paginaAtual === 'home' && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-6">
-          {/* Card de Boas-Vindas */}
           <section className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 flex items-start gap-4">
             <div className="w-16 h-16 rounded-full border-2 border-amber-400 p-0.5 flex-shrink-0 overflow-hidden bg-slate-100">
               <img src="https://via.placeholder.com/150" alt="Pastores" className="w-full h-full object-cover rounded-full" />
@@ -162,7 +161,6 @@ export default function App() {
             </div>
           </section>
 
-          {/* Grade de Atalhos */}
           <section>
             <div className="mb-4">
               <h2 className="text-xl font-bold text-slate-900">Acesso Rápido</h2>
@@ -187,7 +185,6 @@ export default function App() {
             </div>
           </section>
 
-          {/* Card do Versículo */}
           <section className="bg-[#0B1E3B] text-white p-6 rounded-3xl shadow-md text-center">
             <p className="text-base font-serif italic mb-2">"Eu e a minha casa serviremos ao Senhor."</p>
             <span className="text-xs font-semibold text-amber-400">Josué 24:15</span>
@@ -218,7 +215,7 @@ export default function App() {
 
               <div className="flex items-center gap-2">
                 <input type="checkbox" id="anonimo" checked={isAnonimo} onChange={(e) => setIsAnonimo(e.target.checked)} className="rounded text-amber-500" />
-                <label htmlFor="anonimo" className="text-xs text-slate-600">Quero publicar como **Anônimo**</label>
+                <label htmlFor="anonimo" className="text-xs text-slate-600 select-none">Quero publicar como **Anônimo**</label>
               </div>
 
               <div>
@@ -254,7 +251,7 @@ export default function App() {
         </main>
       )}
 
-      {/* ================= 3. PÁGINA LOCALIZAÇÃO / CONGREGAÇÕES ================= */}
+      {/* ================= 3. PÁGINA LOCALIZAÇÃO (VISÃO DOS MEMBROS) ================= */}
       {paginaAtual === 'localizacao' && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-6">
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm hover:bg-slate-100 active:scale-95 transition-all">
@@ -309,18 +306,6 @@ export default function App() {
               ))}
             </div>
           </section>
-
-          {/* Cadastro para o Admin */}
-          <section className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-3">
-            <h3 className="text-sm font-bold text-slate-900 border-b pb-2">Cadastrar Nova Congregação (Admin)</h3>
-            <form onSubmit={handleAdicionarCongregacao} className="space-y-2.5">
-              <input type="text" placeholder="Nome da Congregação" value={novaNome} onChange={(e) => setNovaNome(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
-              <input type="text" placeholder="Endereço completo" value={novoEndereco} onChange={(e) => setNovoEndereco(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
-              <input type="text" placeholder="Pastor Dirigente" value={novoPastor} onChange={(e) => setNovoPastor(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" />
-              <input type="text" placeholder="URL da Foto da Fachada" value={novaFoto} onChange={(e) => setNovaFoto(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" />
-              <button type="submit" className="w-full bg-emerald-600 text-white py-2.5 rounded-xl font-bold text-xs shadow-sm">+ Adicionar Congregação</button>
-            </form>
-          </section>
         </main>
       )}
 
@@ -362,7 +347,7 @@ export default function App() {
         </main>
       )}
 
-      {/* ================= 5. PÁGINA ÁREA ADMIN ================= */}
+      {/* ================= 5. PÁGINA ÁREA ADMIN (CADASTRO EXCLUSIVO AQUI) ================= */}
       {paginaAtual === 'admin' && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">
@@ -373,20 +358,40 @@ export default function App() {
             <div className="bg-white p-6 rounded-3xl shadow-sm space-y-4 text-center">
               <span className="text-4xl">🔐</span>
               <h2 className="text-lg font-bold text-slate-900">Painel do Administrador</h2>
+              <p className="text-xs text-slate-500">Acesso restrito para gerenciamento da igreja.</p>
               <form onSubmit={handleLoginAdmin} className="space-y-3 pt-2">
                 <input type="password" placeholder="Digite a senha de acesso" value={senhaAdmin} onChange={(e) => setSenhaAdmin(e.target.value)} className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-center font-bold" />
                 <button type="submit" className="w-full bg-[#0B1E3B] text-white py-3 rounded-xl font-bold text-xs shadow-md">Entrar no Painel</button>
               </form>
             </div>
           ) : (
-            <div className="bg-white p-6 rounded-3xl shadow-sm space-y-5">
-              <div className="flex items-center justify-between border-b pb-3 border-slate-100">
-                <h2 className="text-lg font-bold text-slate-900">Painel de Controle</h2>
+            <div className="space-y-5">
+              <div className="bg-white p-5 rounded-3xl shadow-sm flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">Painel de Controle</h2>
+                  <span className="text-[10px] text-emerald-600 font-bold">● SESSÃO ATIVA</span>
+                </div>
                 <button onClick={() => setAdminLogado(false)} className="text-xs text-red-600 font-bold bg-red-50 px-2.5 py-1 rounded-lg">Sair</button>
               </div>
+
+              {/* FORMULÁRIO EXCLUSIVO DO ADMIN PARA CADASTRAR CONGREGAÇÃO */}
+              <section className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-3">
+                <div className="border-b pb-2 border-slate-100">
+                  <span className="text-[9px] font-black text-amber-600 uppercase">Gestão de Igrejas</span>
+                  <h3 className="text-sm font-bold text-slate-900">Cadastrar Nova Congregação</h3>
+                </div>
+                <form onSubmit={handleAdicionarCongregacao} className="space-y-2.5">
+                  <input type="text" placeholder="Nome da Congregação (Ex: Vila Natal)" value={novaNome} onChange={(e) => setNovaNome(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
+                  <input type="text" placeholder="Endereço completo (Rua, Nº, Bairro)" value={novoEndereco} onChange={(e) => setNovoEndereco(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
+                  <input type="text" placeholder="Nome do Pastor Dirigente" value={novoPastor} onChange={(e) => setNovoPastor(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" />
+                  <input type="text" placeholder="URL da Foto da Fachada" value={novaFoto} onChange={(e) => setNovaFoto(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" />
+                  <button type="submit" className="w-full bg-emerald-600 text-white py-2.5 rounded-xl font-bold text-xs shadow-sm hover:bg-emerald-700 active:scale-95 transition-all">+ Adicionar Congregação</button>
+                </form>
+              </section>
+
               <div className="grid grid-cols-2 gap-3 text-xs">
-                <button className="p-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 text-left">📢 Gerenciar Avisos</button>
-                <button className="p-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 text-left">📅 Editar Agenda</button>
+                <button className="p-3 bg-white border border-slate-200 rounded-2xl font-bold text-slate-800 text-left shadow-sm">📢 Gerenciar Avisos</button>
+                <button className="p-3 bg-white border border-slate-200 rounded-2xl font-bold text-slate-800 text-left shadow-sm">📅 Editar Agenda</button>
               </div>
             </div>
           )}
