@@ -44,7 +44,31 @@ export default function App() {
     { id: 'missoes', nome: 'MISSÕES', sigla: 'Secretaria de Missões', icon: '🌍', descricao: 'Evangelismo e Projetos Missionários' },
   ];
 
-  // 3. ESTADO DOS PEDIDOS DE ORAÇÃO
+  // 3. ESTADO DA AGENDA DE EVENTOS
+  const [eventos, setEventos] = useState([
+    {
+      id: 1,
+      nome: 'Culto de Ensino e Doutrina',
+      data: 'Toda Quarta-feira',
+      horario: '19:30',
+      local: 'Igreja Sede (Templo Principal)',
+    },
+    {
+      id: 2,
+      nome: 'Grande Culto de Celebração em Família',
+      data: 'Todo Domingo',
+      horario: '18:00',
+      local: 'Igreja Sede',
+    },
+  ]);
+
+  // Form de criação de Evento (Admin)
+  const [nomeEv, setNomeEv] = useState('');
+  const [dataEv, setDataEv] = useState('');
+  const [horarioEv, setHorarioEv] = useState('');
+  const [localEv, setLocalEv] = useState('');
+
+  // 4. ESTADO DOS PEDIDOS DE ORAÇÃO
   const [pedidos, setPedidos] = useState([
     {
       id: 1,
@@ -54,20 +78,12 @@ export default function App() {
       oracoesCount: 12,
       orou: false,
     },
-    {
-      id: 2,
-      nome: 'Irmão em Cristo (Anônimo)',
-      pedido: 'Orem por uma porta de emprego na área de suprimentos e logística.',
-      data: 'Ontem',
-      oracoesCount: 8,
-      orou: false,
-    },
   ]);
   const [novoNome, setNovoNome] = useState('');
   const [novoPedido, setNovoPedido] = useState('');
   const [isAnonimo, setIsAnonimo] = useState(false);
 
-  // 4. ESTADO DAS CONGREGAÇÕES E LOCALIZAÇÃO
+  // 5. ESTADO DAS CONGREGAÇÕES E LOCALIZAÇÃO
   const [congregacoes, setCongregacoes] = useState([
     {
       id: 1,
@@ -96,6 +112,32 @@ export default function App() {
     } else {
       alert('Senha incorreta!');
     }
+  };
+
+  // Cadastrar Evento na Agenda
+  const handleAdicionarEvento = (e) => {
+    e.preventDefault();
+    if (!nomeEv || !dataEv || !horarioEv || !localEv) return;
+
+    const novoEventoObj = {
+      id: Date.now(),
+      nome: nomeEv,
+      data: dataEv,
+      horario: horarioEv,
+      local: localEv,
+    };
+
+    setEventos([...eventos, novoEventoObj]);
+    setNomeEv('');
+    setDataEv('');
+    setHorarioEv('');
+    setLocalEv('');
+    alert('Evento adicionado à agenda com sucesso!');
+  };
+
+  // Excluir Evento
+  const handleRemoverEvento = (id) => {
+    setEventos(eventos.filter((ev) => ev.id !== id));
   };
 
   const handleAdicionarPedido = (e) => {
@@ -199,7 +241,58 @@ export default function App() {
         </main>
       )}
 
-      {/* ================= 2. PÁGINA DÍZIMOS E OFERTAS (NOVA) ================= */}
+      {/* ================= 2. PÁGINA AGENDA (ÁREA DOS MEMBROS) ================= */}
+      {paginaAtual === 'agenda' && (
+        <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
+          <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm hover:bg-slate-100 active:scale-95 transition-all">
+            ← Voltar ao Menu Principal
+          </button>
+
+          <div className="mb-2">
+            <h1 className="text-2xl font-bold text-slate-900">Agenda Oficial</h1>
+            <p className="text-xs text-slate-500">Acompanhe nossos cultos, conferências e eventos</p>
+            <div className="w-12 h-1 bg-amber-400 rounded-full mt-1.5"></div>
+          </div>
+
+          <div className="space-y-3">
+            {eventos.length === 0 ? (
+              <div className="bg-white p-6 rounded-3xl text-center space-y-2">
+                <span className="text-3xl">📅</span>
+                <p className="text-xs text-slate-500 font-semibold">Nenhum evento agendado no momento.</p>
+              </div>
+            ) : (
+              eventos.map((ev) => (
+                <div key={ev.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 space-y-2">
+                  <div className="flex items-start justify-between border-b pb-2 border-slate-50">
+                    <h3 className="font-bold text-sm text-slate-900">{ev.nome}</h3>
+                    <span className="text-[10px] font-black bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full uppercase">
+                      AGENDA
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 pt-1">
+                    <div className="flex items-center gap-1.5">
+                      <span>📅</span>
+                      <span className="font-semibold">{ev.data}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span>⏰</span>
+                      <span className="font-semibold">{ev.horario}</span>
+                    </div>
+                  </div>
+
+                  <div className="text-xs text-slate-600 flex items-center gap-1.5 pt-1 border-t border-slate-50">
+                    <span>📍</span>
+                    <span className="truncate font-medium">{ev.local}</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </main>
+      )}
+
+      {/* ================= 3. PÁGINA DÍZIMOS E OFERTAS ================= */}
       {paginaAtual === 'ofertas' && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm hover:bg-slate-100 active:scale-95 transition-all">
@@ -215,37 +308,32 @@ export default function App() {
           </div>
 
           <section className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 text-center space-y-5">
-            {/* QR Code Gerado Automaticamente */}
             <div className="space-y-2">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Escaneie o QR Code com o App do seu Banco</span>
               <div className="w-48 h-48 mx-auto p-3 bg-white border-2 border-slate-100 rounded-2xl shadow-inner flex items-center justify-center">
                 <img 
                   src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${dadosPix.cnpj}`} 
-                  alt="QR Code Pix Igreja" 
+                  alt="QR Code Pix" 
                   className="w-full h-full object-contain"
                 />
               </div>
             </div>
 
-            {/* Informações da Conta */}
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-left space-y-2.5">
               <div>
                 <span className="text-[10px] font-bold text-amber-600 uppercase block">Chave PIX (CNPJ)</span>
                 <p className="text-base font-mono font-bold text-slate-900">{dadosPix.cnpj}</p>
               </div>
-
               <div>
                 <span className="text-[10px] font-bold text-slate-400 uppercase block">Favorecido</span>
                 <p className="text-xs font-semibold text-slate-800 leading-snug">{dadosPix.favorecido}</p>
               </div>
-
               <div>
                 <span className="text-[10px] font-bold text-slate-400 uppercase block">Banco</span>
                 <p className="text-xs font-semibold text-slate-800">{dadosPix.banco}</p>
               </div>
             </div>
 
-            {/* Botão de Copiar Chave PIX */}
             <button 
               onClick={copiarPix}
               className={`w-full py-3.5 rounded-xl text-xs font-bold shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 ${
@@ -261,7 +349,7 @@ export default function App() {
         </main>
       )}
 
-      {/* ================= 3. PÁGINA PEDIDOS DE ORAÇÃO ================= */}
+      {/* ================= 4. PÁGINA PEDIDOS DE ORAÇÃO ================= */}
       {paginaAtual === 'oracao' && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-6">
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm hover:bg-slate-100 active:scale-95 transition-all">
@@ -320,7 +408,7 @@ export default function App() {
         </main>
       )}
 
-      {/* ================= 4. PÁGINA LOCALIZAÇÃO ================= */}
+      {/* ================= 5. PÁGINA LOCALIZAÇÃO ================= */}
       {paginaAtual === 'localizacao' && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-6">
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm hover:bg-slate-100 active:scale-95 transition-all">
@@ -376,7 +464,7 @@ export default function App() {
         </main>
       )}
 
-      {/* ================= 5. PÁGINA DEPARTAMENTOS ================= */}
+      {/* ================= 6. PÁGINA DEPARTAMENTOS ================= */}
       {paginaAtual === 'departamentos' && !departamentoSelecionado && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">
@@ -414,7 +502,7 @@ export default function App() {
         </main>
       )}
 
-      {/* ================= 6. PÁGINA ÁREA ADMIN ================= */}
+      {/* ================= 7. PÁGINA ÁREA ADMIN ================= */}
       {paginaAtual === 'admin' && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">
@@ -441,6 +529,41 @@ export default function App() {
                 <button onClick={() => setAdminLogado(false)} className="text-xs text-red-600 font-bold bg-red-50 px-2.5 py-1 rounded-lg">Sair</button>
               </div>
 
+              {/* GESTÃO DA AGENDA DE EVENTOS (NOVO NO ADMIN) */}
+              <section className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-3">
+                <div className="border-b pb-2 border-slate-100">
+                  <span className="text-[9px] font-black text-amber-600 uppercase">Agenda Oficial</span>
+                  <h3 className="text-sm font-bold text-slate-900">Adicionar Evento na Agenda</h3>
+                </div>
+
+                <form onSubmit={handleAdicionarEvento} className="space-y-2.5">
+                  <input type="text" placeholder="Nome do Evento (Ex: Congresso de Jovens)" value={nomeEv} onChange={(e) => setNomeEv(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input type="text" placeholder="Data (Ex: 25 de Outubro)" value={dataEv} onChange={(e) => setDataEv(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
+                    <input type="text" placeholder="Horário (Ex: 19:30)" value={horarioEv} onChange={(e) => setHorarioEv(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
+                  </div>
+                  <input type="text" placeholder="Local (Ex: Igreja Sede Cubatão)" value={localEv} onChange={(e) => setLocalEv(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
+                  <button type="submit" className="w-full bg-[#0B1E3B] text-white py-2.5 rounded-xl font-bold text-xs shadow-sm active:scale-95 transition-all">+ Publicar Evento</button>
+                </form>
+
+                {/* Lista e Exclusão de Eventos Cadastrados */}
+                <div className="pt-2 border-t border-slate-100 space-y-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">Eventos na Agenda ({eventos.length})</span>
+                  {eventos.map((ev) => (
+                    <div key={ev.id} className="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs">
+                      <div>
+                        <p className="font-bold text-slate-900">{ev.nome}</p>
+                        <p className="text-[10px] text-slate-500">{ev.data} às {ev.horario}</p>
+                      </div>
+                      <button onClick={() => handleRemoverEvento(ev.id)} className="text-red-600 font-bold text-[10px] bg-red-50 px-2 py-1 rounded-lg">
+                        Excluir
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* GESTÃO DE CONGREGAÇÕES */}
               <section className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-3">
                 <div className="border-b pb-2 border-slate-100">
                   <span className="text-[9px] font-black text-amber-600 uppercase">Gestão de Igrejas</span>
@@ -459,7 +582,7 @@ export default function App() {
         </main>
       )}
 
-      {/* ================= 7. DEMAIS PÁGINAS (CULTOS, AGENDA, ETC) ================= */}
+      {/* ================= 8. DEMAIS PÁGINAS (CULTOS, ETC) ================= */}
       {paginaAtual === 'cultos' && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">
@@ -474,7 +597,7 @@ export default function App() {
         </main>
       )}
 
-      {['biblia', 'agenda', 'avisos', 'ebd', 'louvores', 'contatos'].includes(paginaAtual) && (
+      {['biblia', 'avisos', 'ebd', 'louvores', 'contatos'].includes(paginaAtual) && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">
             ← Voltar ao Menu Principal
