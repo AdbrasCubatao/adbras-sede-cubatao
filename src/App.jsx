@@ -26,7 +26,7 @@ export default function App() {
 
   // 1. LISTA DOS 12 BOTÕES DE ATALHO DO MENU
   const atalhos = [
-    { id: 'inicio', titulo: 'Início', icon: '🏠' },
+    { id: 'home', titulo: 'Início', icon: '🏠' },
     { id: 'biblia', titulo: 'Bíblia', icon: '📖' },
     { id: 'agenda', titulo: 'Agenda', icon: '📅' },
     { id: 'cultos', titulo: 'Cultos', icon: '📺', tag: 'AO VIVO' },
@@ -160,6 +160,31 @@ export default function App() {
 
   const handleRemoverEstudo = (id) => {
     setEstudos(estudos.filter((e) => e.id !== id));
+  };
+
+  const handleAdicionarPedido = (e) => {
+    e.preventDefault();
+    if (!novoPedido.trim()) return;
+    const pedido = {
+      id: Date.now(),
+      nome: isAnonimo || !novoNome.trim() ? 'Membro Anônimo' : novoNome,
+      pedido: novoPedido,
+      data: 'Agora mesmo',
+      oracoesCount: 0,
+      orou: false,
+    };
+    setPedidos([pedido, ...pedidos]);
+    setNovoNome('');
+    setNovoPedido('');
+    setIsAnonimo(false);
+  };
+
+  const toggleOracao = (id) => {
+    setPedidos(pedidos.map((item) => item.id === id ? {
+      ...item,
+      oracoesCount: item.orou ? item.oracoesCount - 1 : item.oracoesCount + 1,
+      orou: !item.orou,
+    } : item));
   };
 
   return (
@@ -351,16 +376,143 @@ export default function App() {
         </main>
       )}
 
-      {/* ================= 5. DEMAIS PÁGINAS ================= */}
-      {['biblia', 'agenda', 'avisos', 'oracao', 'departamentos', 'localizacao', 'cultos', 'louvores', 'contatos'].includes(paginaAtual) && (
+      {/* ================= 5. BÍBLIA ================= */}
+      {paginaAtual === 'biblia' && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">
             ← Voltar ao Menu Principal
           </button>
-          <div className="bg-white p-6 rounded-3xl shadow-sm text-center space-y-3">
-            <h2 className="text-lg font-bold text-slate-900 uppercase">{atalhos.find(a => a.id === paginaAtual)?.titulo}</h2>
-            <p className="text-xs text-slate-500">Conteúdo em atualização para a ADBrás Sede Cubatão.</p>
+          <div className="bg-[#0B1E3B] text-white p-6 rounded-3xl text-center space-y-2">
+            <span className="text-4xl">📖</span>
+            <h1 className="text-xl font-bold">Bíblia Sagrada</h1>
+            <p className="text-xs text-slate-200">Leia e medite na Palavra de Deus</p>
           </div>
+          <a href="https://www.bibliaonline.com.br/" target="_blank" rel="noreferrer" className="block bg-white p-5 rounded-3xl shadow-sm text-center font-bold text-sm text-slate-900">Abrir Bíblia Online →</a>
+        </main>
+      )}
+
+      {/* ================= 6. AGENDA ================= */}
+      {paginaAtual === 'agenda' && (
+        <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
+          <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">← Voltar ao Menu Principal</button>
+          <div><h1 className="text-2xl font-bold text-slate-900">Agenda Oficial</h1><div className="w-12 h-1 bg-amber-400 rounded-full mt-1.5"></div></div>
+          {eventos.length === 0 ? (
+            <div className="bg-white p-6 rounded-3xl text-center text-xs text-slate-500">Nenhum evento publicado no momento.</div>
+          ) : eventos.map((ev) => (
+            <div key={ev.id} className="bg-white p-4 rounded-2xl shadow-sm space-y-2">
+              <h2 className="font-bold text-sm">{ev.nome}</h2>
+              <p className="text-xs text-slate-600">📅 {ev.data} às {ev.horario}</p>
+              <p className="text-xs text-slate-600">📍 {ev.local}</p>
+            </div>
+          ))}
+        </main>
+      )}
+
+      {/* ================= 7. CULTOS ================= */}
+      {paginaAtual === 'cultos' && (
+        <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
+          <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">← Voltar ao Menu Principal</button>
+          <div className="bg-white p-5 rounded-3xl shadow-sm space-y-4">
+            <h1 className="text-lg font-bold">Cultos e Transmissões</h1>
+            <div className="aspect-video bg-slate-900 rounded-2xl flex items-center justify-center">
+              <a href="https://youtube.com" target="_blank" rel="noreferrer" className="bg-red-600 text-white px-4 py-2 rounded-xl text-xs font-bold">▶ Assistir no YouTube</a>
+            </div>
+          </div>
+        </main>
+      )}
+
+      {/* ================= 8. AVISOS ================= */}
+      {paginaAtual === 'avisos' && (
+        <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
+          <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">← Voltar ao Menu Principal</button>
+          <h1 className="text-2xl font-bold">Mural de Avisos</h1>
+          {avisos.length === 0 ? (
+            <div className="bg-white p-6 rounded-3xl text-center text-xs text-slate-500">Nenhum aviso publicado no momento.</div>
+          ) : avisos.map((aviso) => (
+            <div key={aviso.id} className="bg-white p-4 rounded-2xl shadow-sm space-y-2">
+              <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full uppercase">{aviso.categoria}</span>
+              <h2 className="font-bold text-sm">{aviso.titulo}</h2>
+              <p className="text-xs text-slate-600">{aviso.conteudo}</p>
+            </div>
+          ))}
+        </main>
+      )}
+
+      {/* ================= 9. ORAÇÃO ================= */}
+      {paginaAtual === 'oracao' && (
+        <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
+          <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">← Voltar ao Menu Principal</button>
+          <div className="bg-[#0B1E3B] text-white p-6 rounded-3xl text-center"><span className="text-4xl">🙏</span><h1 className="text-xl font-bold mt-2">Pedidos de Oração</h1></div>
+          <form onSubmit={handleAdicionarPedido} className="bg-white p-5 rounded-3xl shadow-sm space-y-3">
+            <input disabled={isAnonimo} value={novoNome} onChange={(e) => setNovoNome(e.target.value)} placeholder="Seu nome (opcional)" className="w-full text-xs p-3 bg-slate-50 border rounded-xl" />
+            <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={isAnonimo} onChange={(e) => setIsAnonimo(e.target.checked)} /> Publicar anonimamente</label>
+            <textarea required rows="4" value={novoPedido} onChange={(e) => setNovoPedido(e.target.value)} placeholder="Escreva seu pedido..." className="w-full text-xs p-3 bg-slate-50 border rounded-xl"></textarea>
+            <button className="w-full bg-[#0B1E3B] text-white py-3 rounded-xl text-xs font-bold">Publicar Pedido</button>
+          </form>
+          {pedidos.map((item) => (
+            <div key={item.id} className="bg-white p-4 rounded-2xl shadow-sm space-y-3">
+              <div><p className="text-xs font-bold">{item.nome}</p><span className="text-[10px] text-slate-400">{item.data}</span></div>
+              <p className="text-xs text-slate-700 italic">“{item.pedido}”</p>
+              <button onClick={() => toggleOracao(item.id)} className={`px-3 py-2 rounded-full text-xs font-bold ${item.orou ? 'bg-amber-400 text-slate-900' : 'bg-slate-100 text-slate-600'}`}>🙏 {item.orou ? 'Estou Orando' : 'Apoiar em Oração'} ({item.oracoesCount})</button>
+            </div>
+          ))}
+        </main>
+      )}
+
+      {/* ================= 10. DEPARTAMENTOS ================= */}
+      {paginaAtual === 'departamentos' && !departamentoSelecionado && (
+        <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
+          <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">← Voltar ao Menu Principal</button>
+          <div><h1 className="text-2xl font-bold">Departamentos</h1><p className="text-xs text-slate-500">Conheça os ministérios da nossa igreja</p></div>
+          <div className="space-y-3">
+            {departamentos.map((dept) => (
+              <button key={dept.id} onClick={() => setDepartamentoSelecionado(dept)} className="w-full bg-white p-4 rounded-2xl shadow-sm flex items-center gap-4 text-left active:scale-95 transition-all">
+                <span className="text-3xl">{dept.icon}</span>
+                <div className="flex-1"><h2 className="font-bold text-sm">{dept.nome}</h2><p className="text-xs text-slate-500">{dept.sigla}</p></div>
+                <span className="text-slate-400">›</span>
+              </button>
+            ))}
+          </div>
+        </main>
+      )}
+
+      {paginaAtual === 'departamentos' && departamentoSelecionado && (
+        <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
+          <button onClick={() => setDepartamentoSelecionado(null)} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">← Voltar aos Departamentos</button>
+          <div className="bg-[#0B1E3B] text-white p-8 rounded-3xl text-center space-y-3">
+            <span className="text-5xl">{departamentoSelecionado.icon}</span>
+            <h1 className="text-2xl font-bold">{departamentoSelecionado.nome}</h1>
+            <span className="inline-block bg-amber-400 text-slate-900 text-xs font-bold px-3 py-1 rounded-full">{departamentoSelecionado.sigla}</span>
+          </div>
+          <div className="bg-white p-5 rounded-3xl shadow-sm"><p className="text-sm text-slate-600 leading-relaxed">{departamentoSelecionado.descricao}</p><p className="text-xs text-slate-400 mt-4">Novidades, agenda, liderança e conteúdos deste departamento serão publicados aqui.</p></div>
+        </main>
+      )}
+
+      {/* ================= 11. LOCALIZAÇÃO ================= */}
+      {paginaAtual === 'localizacao' && (
+        <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
+          <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">← Voltar ao Menu Principal</button>
+          <h1 className="text-2xl font-bold">Nossas Igrejas</h1>
+          <div className="bg-white p-5 rounded-3xl shadow-sm border-2 border-amber-400 space-y-3">
+            <h2 className="text-lg font-bold">ADBrás Sede Cubatão</h2>
+            <p className="text-xs text-slate-600">Rua Agostinho Lourenço Vilete, nº 125 – Jardim Nova República, Cubatão – SP</p>
+            <a href="https://maps.google.com/?q=Rua+Agostinho+Lourenco+Vilete+125+Cubatao+SP" target="_blank" rel="noreferrer" className="block bg-[#0B1E3B] text-white py-3 rounded-xl text-xs font-bold text-center">📍 Ver rota no Google Maps</a>
+          </div>
+          {congregacoes.map((cong) => (
+            <div key={cong.id} className="bg-white rounded-3xl shadow-sm overflow-hidden">
+              {cong.foto && <img src={cong.foto} alt={cong.nome} className="w-full h-36 object-cover" />}
+              <div className="p-4 space-y-1"><h2 className="font-bold text-sm">{cong.nome}</h2><p className="text-xs text-slate-600">{cong.endereco}</p><p className="text-xs text-slate-500">Dirigente: {cong.pastor}</p></div>
+            </div>
+          ))}
+        </main>
+      )}
+
+      {/* ================= 12. LOUVORES ================= */}
+      {paginaAtual === 'louvores' && (
+        <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
+          <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">← Voltar ao Menu Principal</button>
+          <div className="bg-[#0B1E3B] text-white p-6 rounded-3xl text-center"><span className="text-4xl">🎵</span><h1 className="text-xl font-bold mt-2">Louvores</h1></div>
+          <div className="bg-white p-6 rounded-3xl shadow-sm text-center"><p className="text-xs text-slate-500">Os louvores, playlists e apresentações da igreja serão publicados aqui.</p><a href="https://youtube.com" target="_blank" rel="noreferrer" className="block mt-4 bg-red-600 text-white py-3 rounded-xl text-xs font-bold">Abrir canal no YouTube</a></div>
         </main>
       )}
 
