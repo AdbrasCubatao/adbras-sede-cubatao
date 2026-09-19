@@ -194,13 +194,19 @@ export default function App() {
       {paginaAtual === 'home' && (
         <main className="church-home">
           <header className="church-hero">
-            <div className="hero-actions"><button aria-label="Abrir menu">☰</button><button aria-label="Notificações">♧</button></div>
-            <div className="brand-lockup">
-              <div className="brand-symbol">♨</div>
-              <div><strong>AD BRÁS</strong><span>CUBATÃO</span><p>Uma Igreja que Ama,<br />Serve e Anuncia Jesus!</p></div>
-            </div>
-          </header>
+  <div className="brand-lockup">
+    <img
+      src="/logo-adbras-cubatao-refinado.png"
+      alt="AD Brás Cubatão"
+      className="official-logo"
+    />
 
+    <p>
+      Uma Igreja que Ama,<br />
+      Serve e Anuncia Jesus!
+    </p>
+  </div>
+</header>
           <section className="welcome-card">
             <img src="/pastores-edson-solange.jpg" alt="Pr. Edson Carlos da Silva e Missª. Solange Silva" />
             <div className="welcome-copy"><h1>Bem-vindo!</h1><p>Que sua vida seja edificada pela Palavra de Deus e pela comunhão com a nossa igreja.</p><em>Pr. Edson e Missª. Solange</em><strong>PRESIDENTES DO CAMPO</strong></div>
