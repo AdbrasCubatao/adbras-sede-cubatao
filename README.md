@@ -1,16 +1,14 @@
-# React + Vite
+# ADBrás Sede Cubatão
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Projeto React + Vite preparado para publicação no Vercel.
 
-Currently, two official plugins are available:
+## Publicar pelo GitHub e Vercel
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+1. Extraia o ZIP.
+2. Envie **o conteúdo da pasta `adbras-sede-cubatao`** para a raiz do repositório no GitHub.
+3. No Vercel, clique em **Add New > Project** e importe o repositório.
+4. Confirme **Framework Preset: Vite**.
+5. O comando de build deve ser `npm run build` e a pasta de saída deve ser `dist`.
+6. Clique em **Deploy**.
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+O projeto já contém `package.json`, `index.html`, Vite, Tailwind e a entrada do React.
