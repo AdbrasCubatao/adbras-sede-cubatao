@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 const SUPABASE_URL = 'https://vhffaeepsivfydethxqv.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_nu3gRFHZ_hEOIeQmI0a5Ag_oTjOTcp_eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoZmZhZWVwc2l2ZnlkZXRoeHF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk2OTM0ODAsImV4cCI6MjEwNTI2OTQ4MH0.5N040l1f4XJc2TZjd74H6UUCOBrRYuakctFKNLqalz0';
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+export const supabase = createClient(SUPABASE_URL, eSUPABASE_ANON_KEY);
 
 export default function App() {
   // Estado de Navegação Central
@@ -196,7 +196,15 @@ export default function App() {
           <header className="church-hero">
             <div className="hero-actions"><button aria-label="Abrir menu">☰</button><button aria-label="Notificações">♧</button></div>
             <div className="brand-lockup">
-              <div className="brand-symbol">♨</div>
+              <img
+  src="/logo-adbras-cubatao-refinado.png"
+  alt="AD Brás Cubatão"
+  style={{
+    width: "105px",
+    height: "80px",
+    objectFit: "contain"
+  }}
+/>
               <div><strong>AD BRÁS</strong><span>CUBATÃO</span><p>Uma Igreja que Ama,<br />Serve e Anuncia Jesus!</p></div>
             </div>
           </header>
