@@ -196,15 +196,7 @@ export default function App() {
           <header className="church-hero">
             <div className="hero-actions"><button aria-label="Abrir menu">☰</button><button aria-label="Notificações">♧</button></div>
             <div className="brand-lockup">
-              <img
-  src="/logo-adbras-cubatao-refinado.png"
-  alt="AD Brás Cubatão"
-  style={{
-    width: "105px",
-    height: "80px",
-    objectFit: "contain"
-  }}
-/>
+              <div className="brand-symbol">♨</div>
               <div><strong>AD BRÁS</strong><span>CUBATÃO</span><p>Uma Igreja que Ama,<br />Serve e Anuncia Jesus!</p></div>
             </div>
           </header>
