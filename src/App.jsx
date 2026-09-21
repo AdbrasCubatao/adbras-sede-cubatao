@@ -41,14 +41,15 @@ export default function App() {
   ];
 
   // 2. LISTA DOS 7 DEPARTAMENTOS OFICIAIS
+  // Os campos de liderança, agenda, avisos e galeria serão alimentados pelo Supabase.
   const departamentos = [
-    { id: 'ujademc', nome: 'UJADEMC', sigla: 'Jovens', icon: '🔥', descricao: 'União de Jovens da Assembléia de Deus em Cubatão' },
-    { id: 'minidemc', nome: 'MINIDEMC', sigla: 'Crianças', icon: '🎨', descricao: 'Ministério Infantil da Assembléia de Deus em Cubatão' },
-    { id: 'geracaoteen', nome: 'GERAÇÃO TEEN', sigla: 'Adolescentes', icon: '⚡', descricao: 'Departamento de Adolescentes' },
-    { id: 'cibec', nome: 'CIBEC', sigla: 'Mulheres', icon: '🌸', descricao: 'Congresso e Círculo de Oração Feminino' },
-    { id: 'univadem', nome: 'UNIVADEM', sigla: 'Homens', icon: '🛡️', descricao: 'União dos Varões da Assembléia de Deus em Cubatão' },
-    { id: 'diaconal', nome: 'DIACONAL', sigla: 'Corpo Diaconal', icon: '🤝', descricao: 'Corpo Diaconal e Serviço da Igreja' },
-    { id: 'missoes', nome: 'MISSÕES', sigla: 'Secretaria de Missões', icon: '🌍', descricao: 'Evangelismo e Projetos Missionários' },
+    { id: 'ujademc', nome: 'UJADEMC', sigla: 'Jovens', icon: '🔥', descricao: 'União de Jovens da Assembléia de Deus em Cubatão', gradiente: 'linear-gradient(135deg, #071a36, #b7791f)', lideres: [], eventos: [], avisos: [], galeria: [] },
+    { id: 'minidemc', nome: 'MINIDEMC', sigla: 'Crianças', icon: '🎨', descricao: 'Ministério Infantil da Assembléia de Deus em Cubatão', gradiente: 'linear-gradient(135deg, #0f4c5c, #d7a83c)', lideres: [], eventos: [], avisos: [], galeria: [] },
+    { id: 'geracaoteen', nome: 'GERAÇÃO TEEN', sigla: 'Adolescentes', icon: '⚡', descricao: 'Departamento de Adolescentes', gradiente: 'linear-gradient(135deg, #312e81, #d7a83c)', lideres: [], eventos: [], avisos: [], galeria: [] },
+    { id: 'cibec', nome: 'CIBEC', sigla: 'Mulheres', icon: '🌸', descricao: 'Congresso e Círculo de Oração Feminino', gradiente: 'linear-gradient(135deg, #701a75, #d7a83c)', lideres: [], eventos: [], avisos: [], galeria: [] },
+    { id: 'univadem', nome: 'UNIVADEM', sigla: 'Homens', icon: '🛡️', descricao: 'União dos Varões da Assembléia de Deus em Cubatão', gradiente: 'linear-gradient(135deg, #172554, #9a7b2f)', lideres: [], eventos: [], avisos: [], galeria: [] },
+    { id: 'diaconal', nome: 'DIACONAL', sigla: 'Corpo Diaconal', icon: '🤝', descricao: 'Corpo Diaconal e Serviço da Igreja', gradiente: 'linear-gradient(135deg, #1f2937, #b58b2d)', lideres: [], eventos: [], avisos: [], galeria: [] },
+    { id: 'missoes', nome: 'MISSÕES', sigla: 'Secretaria de Missões', icon: '🌍', descricao: 'Evangelismo e Projetos Missionários', gradiente: 'linear-gradient(135deg, #064e3b, #d7a83c)', lideres: [], eventos: [], avisos: [], galeria: [] },
   ];
 
   // 3. ESTADO DOS ESTUDOS / EBD COM SUPABASE
@@ -194,19 +195,12 @@ export default function App() {
       {paginaAtual === 'home' && (
         <main className="church-home">
           <header className="church-hero">
-  <div className="brand-lockup">
-    <img
-      src="/logo-adbras-cubatao-refinado.png"
-      alt="AD Brás Cubatão"
-      className="official-logo"
-    />
+            <div className="brand-lockup">
+              <img src="/logo-adbras-cubatao-refinado.png" alt="AD Brás Cubatão" className="official-logo" />
+              <p>Uma Igreja que Ama,<br />Serve e Anuncia Jesus!</p>
+            </div>
+          </header>
 
-    <p>
-      Uma Igreja que Ama,<br />
-      Serve e Anuncia Jesus!
-    </p>
-  </div>
-</header>
           <section className="welcome-card">
             <img src="/pastores-edson-solange.jpg" alt="Pr. Edson Carlos da Silva e Missª. Solange Silva" />
             <div className="welcome-copy"><h1>Bem-vindo!</h1><p>Que sua vida seja edificada pela Palavra de Deus e pela comunhão com a nossa igreja.</p><em>Pr. Edson e Missª. Solange</em><strong>PRESIDENTES DO CAMPO</strong></div>
@@ -473,12 +467,11 @@ export default function App() {
         <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">← Voltar ao Menu Principal</button>
           <div><h1 className="text-2xl font-bold">Departamentos</h1><p className="text-xs text-slate-500">Conheça os ministérios da nossa igreja</p></div>
-          <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
             {departamentos.map((dept) => (
-              <button key={dept.id} onClick={() => setDepartamentoSelecionado(dept)} className="w-full bg-white p-4 rounded-2xl shadow-sm flex items-center gap-4 text-left active:scale-95 transition-all">
-                <span className="text-3xl">{dept.icon}</span>
-                <div className="flex-1"><h2 className="font-bold text-sm">{dept.nome}</h2><p className="text-xs text-slate-500">{dept.sigla}</p></div>
-                <span className="text-slate-400">›</span>
+              <button key={dept.id} onClick={() => setDepartamentoSelecionado(dept)} className="min-h-36 p-4 rounded-3xl shadow-sm text-left text-white active:scale-95 transition-all flex flex-col justify-between" style={{ background: dept.gradiente }}>
+                <span className="text-4xl">{dept.icon}</span>
+                <div><h2 className="font-extrabold text-sm tracking-wide">{dept.nome}</h2><p className="text-[11px] text-white/80 mt-1">{dept.sigla}</p></div>
               </button>
             ))}
           </div>
@@ -486,14 +479,45 @@ export default function App() {
       )}
 
       {paginaAtual === 'departamentos' && departamentoSelecionado && (
-        <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
+        <main className="max-w-md mx-auto px-4 pt-6 pb-8 space-y-5">
           <button onClick={() => setDepartamentoSelecionado(null)} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">← Voltar aos Departamentos</button>
-          <div className="bg-[#0B1E3B] text-white p-8 rounded-3xl text-center space-y-3">
-            <span className="text-5xl">{departamentoSelecionado.icon}</span>
-            <h1 className="text-2xl font-bold">{departamentoSelecionado.nome}</h1>
-            <span className="inline-block bg-amber-400 text-slate-900 text-xs font-bold px-3 py-1 rounded-full">{departamentoSelecionado.sigla}</span>
+          <div className="text-white p-8 rounded-3xl text-center space-y-3 shadow-lg" style={{ background: departamentoSelecionado.gradiente }}>
+            <span className="text-6xl">{departamentoSelecionado.icon}</span>
+            <div><h1 className="text-2xl font-extrabold tracking-wide">{departamentoSelecionado.nome}</h1><p className="text-sm text-white/80 mt-1">{departamentoSelecionado.sigla}</p></div>
           </div>
-          <div className="bg-white p-5 rounded-3xl shadow-sm"><p className="text-sm text-slate-600 leading-relaxed">{departamentoSelecionado.descricao}</p><p className="text-xs text-slate-400 mt-4">Novidades, agenda, liderança e conteúdos deste departamento serão publicados aqui.</p></div>
+
+          <section className="bg-white p-5 rounded-3xl shadow-sm space-y-2">
+            <h2 className="font-extrabold text-base">Nosso propósito</h2>
+            <p className="text-sm text-slate-600 leading-relaxed">{departamentoSelecionado.descricao}</p>
+          </section>
+
+          <section className="bg-white p-5 rounded-3xl shadow-sm space-y-3">
+            <div className="flex items-center justify-between"><h2 className="font-extrabold text-base">Liderança</h2><span className="text-xl">👤</span></div>
+            {departamentoSelecionado.lideres.length > 0 ? departamentoSelecionado.lideres.map((lider) => (
+              <div key={lider.id} className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl"><div className="w-11 h-11 rounded-full bg-[#0B1E3B] text-white grid place-items-center font-bold">{lider.nome.charAt(0)}</div><div><p className="text-sm font-bold">{lider.nome}</p><p className="text-xs text-slate-500">{lider.cargo}</p></div></div>
+            )) : <p className="text-xs text-slate-400 bg-slate-50 p-4 rounded-2xl">A liderança será adicionada em breve.</p>}
+          </section>
+
+          <section className="bg-white p-5 rounded-3xl shadow-sm space-y-3">
+            <div className="flex items-center justify-between"><h2 className="font-extrabold text-base">Próximos eventos</h2><span className="text-xl">📅</span></div>
+            {departamentoSelecionado.eventos.length > 0 ? departamentoSelecionado.eventos.map((evento) => (
+              <div key={evento.id} className="border-l-4 border-amber-400 pl-3"><p className="text-sm font-bold">{evento.titulo}</p><p className="text-xs text-slate-500">{evento.data} • {evento.horario}</p></div>
+            )) : <p className="text-xs text-slate-400 bg-slate-50 p-4 rounded-2xl">Nenhum evento publicado no momento.</p>}
+          </section>
+
+          <section className="bg-white p-5 rounded-3xl shadow-sm space-y-3">
+            <div className="flex items-center justify-between"><h2 className="font-extrabold text-base">Avisos e novidades</h2><span className="text-xl">📢</span></div>
+            {departamentoSelecionado.avisos.length > 0 ? departamentoSelecionado.avisos.map((aviso) => (
+              <div key={aviso.id} className="bg-amber-50 border border-amber-100 p-3 rounded-2xl"><p className="text-sm font-bold">{aviso.titulo}</p><p className="text-xs text-slate-600 mt-1">{aviso.conteudo}</p></div>
+            )) : <p className="text-xs text-slate-400 bg-slate-50 p-4 rounded-2xl">Os avisos deste departamento aparecerão aqui.</p>}
+          </section>
+
+          <section className="bg-white p-5 rounded-3xl shadow-sm space-y-3">
+            <div className="flex items-center justify-between"><h2 className="font-extrabold text-base">Galeria</h2><span className="text-xl">📸</span></div>
+            {departamentoSelecionado.galeria.length > 0 ? <div className="grid grid-cols-3 gap-2">{departamentoSelecionado.galeria.map((foto) => <img key={foto.id} src={foto.url} alt={foto.legenda || departamentoSelecionado.nome} className="w-full aspect-square object-cover rounded-xl" />)}</div> : <p className="text-xs text-slate-400 bg-slate-50 p-4 rounded-2xl">As fotos e vídeos serão publicados aqui.</p>}
+          </section>
+
+          <button onClick={() => setPaginaAtual('contatos')} className="w-full bg-[#0B1E3B] text-white py-4 rounded-2xl text-sm font-extrabold shadow-lg active:scale-95 transition-all">Quero participar 💛</button>
         </main>
       )}
 
