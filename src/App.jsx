@@ -3,8 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 
 // Inicialização do Supabase com suas credenciais
 const SUPABASE_URL = 'https://vhffaeepsivfydethxqv.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_nu3gRFHZ_hEOIeQmI0a5Ag_oTjOTcp_eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoZmZhZWVwc2l2ZnlkZXRoeHF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk2OTM0ODAsImV4cCI6MjEwNTI2OTQ4MH0.5N040l1f4XJc2TZjd74H6UUCOBrRYuakctFKNLqalz0';
-
+const SUPABASE_ANON_KEY = sb_publishable_nu3gRFHZ_hEOIeQmI0a5Ag_oTjOTcp_
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export default function App() {
