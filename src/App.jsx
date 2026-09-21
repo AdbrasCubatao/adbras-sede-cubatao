@@ -42,7 +42,7 @@ export default function App() {
 
   // 2. LISTA DOS 7 DEPARTAMENTOS OFICIAIS
   // Os campos de liderança, agenda, avisos e galeria serão alimentados pelo Supabase.
-  const departamentos = [
+  const departamentosBase = [
     { id: 'ujademc', nome: 'UJADEMC', sigla: 'Jovens', icon: '🔥', descricao: 'União de Jovens da Assembléia de Deus em Cubatão', gradiente: 'linear-gradient(135deg, #071a36, #b7791f)', lideres: [], eventos: [], avisos: [], galeria: [] },
     { id: 'minidemc', nome: 'MINIDEMC', sigla: 'Crianças', icon: '🎨', descricao: 'Ministério Infantil da Assembléia de Deus em Cubatão', gradiente: 'linear-gradient(135deg, #0f4c5c, #d7a83c)', lideres: [], eventos: [], avisos: [], galeria: [] },
     { id: 'geracaoteen', nome: 'GERAÇÃO TEEN', sigla: 'Adolescentes', icon: '⚡', descricao: 'Departamento de Adolescentes', gradiente: 'linear-gradient(135deg, #312e81, #d7a83c)', lideres: [], eventos: [], avisos: [], galeria: [] },
@@ -51,6 +51,64 @@ export default function App() {
     { id: 'diaconal', nome: 'DIACONAL', sigla: 'Corpo Diaconal', icon: '🤝', descricao: 'Corpo Diaconal e Serviço da Igreja', gradiente: 'linear-gradient(135deg, #1f2937, #b58b2d)', lideres: [], eventos: [], avisos: [], galeria: [] },
     { id: 'missoes', nome: 'MISSÕES', sigla: 'Secretaria de Missões', icon: '🌍', descricao: 'Evangelismo e Projetos Missionários', gradiente: 'linear-gradient(135deg, #064e3b, #d7a83c)', lideres: [], eventos: [], avisos: [], galeria: [] },
   ];
+
+  const [departamentos, setDepartamentos] = useState(departamentosBase);
+
+  useEffect(() => {
+    let componenteAtivo = true;
+
+    const carregarDepartamentos = async () => {
+      const { data: dadosDepartamentos, error: erroDepartamentos } = await supabase
+        .from('departamentos')
+        .select('*')
+        .eq('ativo', true)
+        .order('ordem', { ascending: true });
+
+      if (erroDepartamentos || !dadosDepartamentos?.length) {
+        if (erroDepartamentos) console.log('Departamentos ainda não configurados no Supabase:', erroDepartamentos.message);
+        return;
+      }
+
+      const [lideresResp, eventosResp, avisosResp, midiasResp] = await Promise.all([
+        supabase.from('departamento_lideres').select('*').eq('ativo', true).order('ordem', { ascending: true }),
+        supabase.from('departamento_eventos').select('*').eq('ativo', true).order('data', { ascending: true }),
+        supabase.from('departamento_avisos').select('*').eq('ativo', true).order('created_at', { ascending: false }),
+        supabase.from('departamento_midias').select('*').eq('ativo', true).order('ordem', { ascending: true }),
+      ]);
+
+      const agruparPorDepartamento = (itens = []) => itens.reduce((grupos, item) => {
+        grupos[item.departamento_id] = [...(grupos[item.departamento_id] || []), item];
+        return grupos;
+      }, {});
+
+      const lideres = agruparPorDepartamento(lideresResp.data);
+      const eventos = agruparPorDepartamento(eventosResp.data);
+      const avisos = agruparPorDepartamento(avisosResp.data);
+      const midias = agruparPorDepartamento(midiasResp.data);
+
+      const departamentosCompletos = dadosDepartamentos.map((dept) => ({
+        id: dept.id,
+        nome: dept.nome,
+        sigla: dept.sigla,
+        icon: dept.icone,
+        descricao: dept.descricao,
+        gradiente: dept.gradiente,
+        lideres: lideres[dept.id] || [],
+        eventos: (eventos[dept.id] || []).map((evento) => ({
+          ...evento,
+          data: evento.data ? new Date(`${evento.data}T12:00:00`).toLocaleDateString('pt-BR') : '',
+          horario: evento.horario?.slice(0, 5) || '',
+        })),
+        avisos: avisos[dept.id] || [],
+        galeria: (midias[dept.id] || []).map((midia) => ({ ...midia, url: midia.arquivo_url })),
+      }));
+
+      if (componenteAtivo) setDepartamentos(departamentosCompletos);
+    };
+
+    carregarDepartamentos();
+    return () => { componenteAtivo = false; };
+  }, []);
 
   // 3. ESTADO DOS ESTUDOS / EBD COM SUPABASE
   const [estudos, setEstudos] = useState([
