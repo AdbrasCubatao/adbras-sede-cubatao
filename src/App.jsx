@@ -3,7 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 
 // Inicialização do Supabase com suas credenciais
 const SUPABASE_URL = 'https://vhffaeepsivfydethxqv.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_nu3gRFHZ_hEOIeQmI0a5Ag_oTjOTcp_'
+const SUPABASE_ANON_KEY = 'sb_publishable_nu3gRFHZ_hEOIeQmI0a5Ag_oTjOTcp_eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoZmZhZWVwc2l2ZnlkZXRoeHF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk2OTM0ODAsImV4cCI6MjEwNTI2OTQ4MH0.5N040l1f4XJc2TZjd74H6UUCOBrRYuakctFKNLqalz0';
+
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export default function App() {
@@ -21,7 +22,23 @@ export default function App() {
 
   // Estados do Admin
   const [adminLogado, setAdminLogado] = useState(false);
+  const [emailAdmin, setEmailAdmin] = useState('');
   const [senhaAdmin, setSenhaAdmin] = useState('');
+  const [departamentoAdmin, setDepartamentoAdmin] = useState('ujademc');
+  const [tipoCadastroDept, setTipoCadastroDept] = useState('lideranca');
+  const [salvandoDept, setSalvandoDept] = useState(false);
+  const [nomeLider, setNomeLider] = useState('');
+  const [cargoLider, setCargoLider] = useState('');
+  const [fotoLider, setFotoLider] = useState('');
+  const [tituloEventoDept, setTituloEventoDept] = useState('');
+  const [dataEventoDept, setDataEventoDept] = useState('');
+  const [horarioEventoDept, setHorarioEventoDept] = useState('');
+  const [localEventoDept, setLocalEventoDept] = useState('');
+  const [tituloAvisoDept, setTituloAvisoDept] = useState('');
+  const [conteudoAvisoDept, setConteudoAvisoDept] = useState('');
+  const [urlMidiaDept, setUrlMidiaDept] = useState('');
+  const [legendaMidiaDept, setLegendaMidiaDept] = useState('');
+  const [tipoMidiaDept, setTipoMidiaDept] = useState('foto');
 
   // 1. LISTA DOS 11 BOTÕES DE ATALHO DO MENU
   const atalhos = [
@@ -53,10 +70,7 @@ export default function App() {
 
   const [departamentos, setDepartamentos] = useState(departamentosBase);
 
-  useEffect(() => {
-    let componenteAtivo = true;
-
-    const carregarDepartamentos = async () => {
+  const carregarDepartamentos = async () => {
       const { data: dadosDepartamentos, error: erroDepartamentos } = await supabase
         .from('departamentos')
         .select('*')
@@ -102,11 +116,17 @@ export default function App() {
         galeria: (midias[dept.id] || []).map((midia) => ({ ...midia, url: midia.arquivo_url })),
       }));
 
-      if (componenteAtivo) setDepartamentos(departamentosCompletos);
-    };
+      setDepartamentos(departamentosCompletos);
+  };
 
+  useEffect(() => {
     carregarDepartamentos();
-    return () => { componenteAtivo = false; };
+  }, []);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setAdminLogado(Boolean(data.session)));
+    const { data: listener } = supabase.auth.onAuthStateChange((_evento, sessao) => setAdminLogado(Boolean(sessao)));
+    return () => listener.subscription.unsubscribe();
   }, []);
 
   // 3. ESTADO DOS ESTUDOS / EBD COM SUPABASE
@@ -183,13 +203,56 @@ export default function App() {
     setTimeout(() => setPixCopiado(false), 3000);
   };
 
-  const handleLoginAdmin = (e) => {
+  const handleLoginAdmin = async (e) => {
     e.preventDefault();
-    if (senhaAdmin === 'adbras123') {
-      setAdminLogado(true);
-    } else {
-      alert('Senha incorreta!');
+    const { data, error } = await supabase.auth.signInWithPassword({ email: emailAdmin, password: senhaAdmin });
+    if (error) return alert('E-mail ou senha incorretos.');
+
+    const { data: administrador } = await supabase.from('admin_users').select('user_id').eq('user_id', data.user.id).maybeSingle();
+    if (!administrador) {
+      await supabase.auth.signOut();
+      return alert('Este usuário não possui permissão de administrador.');
     }
+    setAdminLogado(true);
+    setSenhaAdmin('');
+  };
+
+  const handleLogoutAdmin = async () => {
+    await supabase.auth.signOut();
+    setAdminLogado(false);
+  };
+
+  const handleCadastroDepartamento = async (e) => {
+    e.preventDefault();
+    setSalvandoDept(true);
+
+    let tabela;
+    let registro;
+
+    if (tipoCadastroDept === 'lideranca') {
+      tabela = 'departamento_lideres';
+      registro = { departamento_id: departamentoAdmin, nome: nomeLider, cargo: cargoLider || 'Liderança', foto_url: fotoLider || null };
+    } else if (tipoCadastroDept === 'evento') {
+      tabela = 'departamento_eventos';
+      registro = { departamento_id: departamentoAdmin, titulo: tituloEventoDept, data: dataEventoDept, horario: horarioEventoDept || null, local: localEventoDept || null };
+    } else if (tipoCadastroDept === 'aviso') {
+      tabela = 'departamento_avisos';
+      registro = { departamento_id: departamentoAdmin, titulo: tituloAvisoDept, conteudo: conteudoAvisoDept };
+    } else {
+      tabela = 'departamento_midias';
+      registro = { departamento_id: departamentoAdmin, tipo: tipoMidiaDept, arquivo_url: urlMidiaDept, legenda: legendaMidiaDept || null };
+    }
+
+    const { error } = await supabase.from(tabela).insert(registro);
+    setSalvandoDept(false);
+    if (error) return alert(`Não foi possível salvar: ${error.message}`);
+
+    setNomeLider(''); setCargoLider(''); setFotoLider('');
+    setTituloEventoDept(''); setDataEventoDept(''); setHorarioEventoDept(''); setLocalEventoDept('');
+    setTituloAvisoDept(''); setConteudoAvisoDept('');
+    setUrlMidiaDept(''); setLegendaMidiaDept('');
+    await carregarDepartamentos();
+    alert('Conteúdo publicado com sucesso!');
   };
 
   const handleAdicionarEstudo = (e) => {
@@ -384,6 +447,7 @@ export default function App() {
               <span className="text-4xl">🔐</span>
               <h2 className="text-lg font-bold text-slate-900">Painel do Administrador</h2>
               <form onSubmit={handleLoginAdmin} className="space-y-3 pt-2">
+                <input type="email" placeholder="E-mail do administrador" value={emailAdmin} onChange={(e) => setEmailAdmin(e.target.value)} className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl text-center font-bold" required />
                 <input type="password" placeholder="Digite a senha de acesso" value={senhaAdmin} onChange={(e) => setSenhaAdmin(e.target.value)} className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl text-center font-bold" />
                 <button type="submit" className="w-full bg-[#0B1E3B] text-white py-3 rounded-xl font-bold text-xs shadow-md">Entrar no Painel</button>
               </form>
@@ -395,8 +459,53 @@ export default function App() {
                   <h2 className="text-lg font-bold text-slate-900">Painel de Controle</h2>
                   <span className="text-[10px] text-emerald-600 font-bold">● SUPABASE CONECTADO</span>
                 </div>
-                <button onClick={() => setAdminLogado(false)} className="text-xs text-red-600 font-bold bg-red-50 px-2.5 py-1 rounded-lg">Sair</button>
+                <button onClick={handleLogoutAdmin} className="text-xs text-red-600 font-bold bg-red-50 px-2.5 py-1 rounded-lg">Sair</button>
               </div>
+
+              {/* PAINEL: GERENCIAR DEPARTAMENTOS */}
+              <section className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-4">
+                <div className="border-b pb-2 border-slate-100">
+                  <span className="text-[9px] font-black text-amber-600 uppercase">Departamentos</span>
+                  <h3 className="text-sm font-bold text-slate-900">Cadastrar conteúdo</h3>
+                </div>
+
+                <select value={departamentoAdmin} onChange={(e) => setDepartamentoAdmin(e.target.value)} className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold">
+                  {departamentos.map((dept) => <option key={dept.id} value={dept.id}>{dept.nome} — {dept.sigla}</option>)}
+                </select>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {[['lideranca', '👤 Liderança'], ['evento', '📅 Evento'], ['aviso', '📢 Aviso'], ['midia', '📸 Galeria']].map(([tipo, label]) => (
+                    <button key={tipo} type="button" onClick={() => setTipoCadastroDept(tipo)} className={`p-2.5 rounded-xl text-[11px] font-bold ${tipoCadastroDept === tipo ? 'bg-[#0B1E3B] text-white' : 'bg-slate-100 text-slate-600'}`}>{label}</button>
+                  ))}
+                </div>
+
+                <form onSubmit={handleCadastroDepartamento} className="space-y-2.5">
+                  {tipoCadastroDept === 'lideranca' && <>
+                    <input value={nomeLider} onChange={(e) => setNomeLider(e.target.value)} placeholder="Nome do líder" className="w-full text-xs p-3 bg-slate-50 border rounded-xl" required />
+                    <input value={cargoLider} onChange={(e) => setCargoLider(e.target.value)} placeholder="Cargo ou função" className="w-full text-xs p-3 bg-slate-50 border rounded-xl" />
+                    <input type="url" value={fotoLider} onChange={(e) => setFotoLider(e.target.value)} placeholder="URL da foto (opcional)" className="w-full text-xs p-3 bg-slate-50 border rounded-xl" />
+                  </>}
+
+                  {tipoCadastroDept === 'evento' && <>
+                    <input value={tituloEventoDept} onChange={(e) => setTituloEventoDept(e.target.value)} placeholder="Nome do evento" className="w-full text-xs p-3 bg-slate-50 border rounded-xl" required />
+                    <div className="grid grid-cols-2 gap-2"><input type="date" value={dataEventoDept} onChange={(e) => setDataEventoDept(e.target.value)} className="w-full text-xs p-3 bg-slate-50 border rounded-xl" required /><input type="time" value={horarioEventoDept} onChange={(e) => setHorarioEventoDept(e.target.value)} className="w-full text-xs p-3 bg-slate-50 border rounded-xl" /></div>
+                    <input value={localEventoDept} onChange={(e) => setLocalEventoDept(e.target.value)} placeholder="Local do evento" className="w-full text-xs p-3 bg-slate-50 border rounded-xl" />
+                  </>}
+
+                  {tipoCadastroDept === 'aviso' && <>
+                    <input value={tituloAvisoDept} onChange={(e) => setTituloAvisoDept(e.target.value)} placeholder="Título do aviso" className="w-full text-xs p-3 bg-slate-50 border rounded-xl" required />
+                    <textarea rows="3" value={conteudoAvisoDept} onChange={(e) => setConteudoAvisoDept(e.target.value)} placeholder="Conteúdo do aviso" className="w-full text-xs p-3 bg-slate-50 border rounded-xl" required />
+                  </>}
+
+                  {tipoCadastroDept === 'midia' && <>
+                    <select value={tipoMidiaDept} onChange={(e) => setTipoMidiaDept(e.target.value)} className="w-full text-xs p-3 bg-slate-50 border rounded-xl"><option value="foto">Foto</option><option value="video">Vídeo</option></select>
+                    <input type="url" value={urlMidiaDept} onChange={(e) => setUrlMidiaDept(e.target.value)} placeholder="URL da foto ou vídeo" className="w-full text-xs p-3 bg-slate-50 border rounded-xl" required />
+                    <input value={legendaMidiaDept} onChange={(e) => setLegendaMidiaDept(e.target.value)} placeholder="Legenda (opcional)" className="w-full text-xs p-3 bg-slate-50 border rounded-xl" />
+                  </>}
+
+                  <button disabled={salvandoDept} className="w-full bg-amber-400 text-slate-900 py-3 rounded-xl font-extrabold text-xs disabled:opacity-60">{salvandoDept ? 'Salvando...' : '+ Publicar no Departamento'}</button>
+                </form>
+              </section>
 
               {/* PAINEL: PUBLICAR ESTUDO */}
               <section className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-3">
