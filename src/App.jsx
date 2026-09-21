@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 
 // Inicialização do Supabase com suas credenciais
 const SUPABASE_URL = 'https://vhffaeepsivfydethxqv.supabase.co';
-const SUPABASE_ANON_KEY = sb_publishable_nu3gRFHZ_hEOIeQmI0a5Ag_oTjOTcp_
+const SUPABASE_ANON_KEY = 'sb_publishable_nu3gRFHZ_hEOIeQmI0a5Ag_oTjOTcp_'
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export default function App() {
