@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 // Inicialização do Supabase com suas credenciais
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const SUPABASE_URL = 'https://vhffaeepsivfydethxqv.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_nu3gRFHZ_hEOIeQmI0a5Ag_oTjOTcp_eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoZmZhZWVwc2l2ZnlkZXRoeHF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk2OTM0ODAsImV4cCI6MjEwNTI2OTQ4MH0.5N040l1f4XJc2TZjd74H6UUCOBrRYuakctFKNLqalz0';
+
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export default function App() {
@@ -635,15 +636,7 @@ export default function App() {
           <div className="grid grid-cols-2 gap-3">
             {departamentos.map((dept) => (
               <button key={dept.id} onClick={() => setDepartamentoSelecionado(dept)} className="min-h-36 p-4 rounded-3xl shadow-sm text-left text-white active:scale-95 transition-all flex flex-col justify-between" style={{ background: dept.gradiente }}>
-                {dept.id === 'cibec' ? (
-  <img
-    src="/logo-cibec.png"
-    alt="CIBEC — Departamento de Mulheres"
-    className="h-20 w-20 object-contain bg-white rounded-2xl p-2"
-  />
-) : (
-  <span className="text-4xl">{dept.icon}</span>
-)}
+                <span className="text-4xl">{dept.icon}</span>
                 <div><h2 className="font-extrabold text-sm tracking-wide">{dept.nome}</h2><p className="text-[11px] text-white/80 mt-1">{dept.sigla}</p></div>
               </button>
             ))}
@@ -655,15 +648,8 @@ export default function App() {
         <main className="max-w-md mx-auto px-4 pt-6 pb-8 space-y-5">
           <button onClick={() => setDepartamentoSelecionado(null)} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">← Voltar aos Departamentos</button>
           <div className="text-white p-8 rounded-3xl text-center space-y-3 shadow-lg" style={{ background: departamentoSelecionado.gradiente }}>
-{departamentoSelecionado.id === 'cibec' ? (
-  <img
-    src="/logo-cibec.png"
-    alt="CIBEC — Departamento de Mulheres"
-    className="h-36 w-36 mx-auto object-contain bg-white rounded-3xl p-3"
-  />
-) : (
-  <span className="text-6xl">{departamentoSelecionado.icon}</span>
-)}            <div><h1 className="text-2xl font-extrabold tracking-wide">{departamentoSelecionado.nome}</h1><p className="text-sm text-white/80 mt-1">{departamentoSelecionado.sigla}</p></div>
+            <span className="text-6xl">{departamentoSelecionado.icon}</span>
+            <div><h1 className="text-2xl font-extrabold tracking-wide">{departamentoSelecionado.nome}</h1><p className="text-sm text-white/80 mt-1">{departamentoSelecionado.sigla}</p></div>
           </div>
 
           <section className="bg-white p-5 rounded-3xl shadow-sm space-y-2">
@@ -674,27 +660,7 @@ export default function App() {
           <section className="bg-white p-5 rounded-3xl shadow-sm space-y-3">
             <div className="flex items-center justify-between"><h2 className="font-extrabold text-base">Liderança</h2><span className="text-xl">👤</span></div>
             {departamentoSelecionado.lideres.length > 0 ? departamentoSelecionado.lideres.map((lider) => (
-              <div
-  key={lider.id}
-  className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl"
->
-  <div className="w-11 h-11 shrink-0 rounded-full overflow-hidden bg-[#0B1E3B] text-white grid place-items-center font-bold">
-    {lider.foto_url ? (
-      <img
-        src={lider.foto_url}
-        alt={lider.nome}
-        className="w-full h-full object-cover"
-      />
-    ) : (
-      lider.nome.charAt(0)
-    )}
-  </div>
-
-  <div>
-    <p className="text-sm font-bold">{lider.nome}</p>
-    <p className="text-xs text-slate-500">{lider.cargo}</p>
-  </div>
-</div>
+              <div key={lider.id} className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl"><div className="w-11 h-11 rounded-full bg-[#0B1E3B] text-white grid place-items-center font-bold">{lider.nome.charAt(0)}</div><div><p className="text-sm font-bold">{lider.nome}</p><p className="text-xs text-slate-500">{lider.cargo}</p></div></div>
             )) : <p className="text-xs text-slate-400 bg-slate-50 p-4 rounded-2xl">A liderança será adicionada em breve.</p>}
           </section>
 
