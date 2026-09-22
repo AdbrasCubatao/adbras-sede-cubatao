@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 // Inicialização do Supabase com suas credenciais
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const SUPABASE_URL = 'https://vhffaeepsivfydethxqv.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_nu3gRFHZ_hEOIeQmI0a5Ag_oTjOTcp_eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoZmZhZWVwc2l2ZnlkZXRoeHF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk2OTM0ODAsImV4cCI6MjEwNTI2OTQ4MH0.5N040l1f4XJc2TZjd74H6UUCOBrRYuakctFKNLqalz0';
+
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export default function App() {
@@ -205,10 +206,7 @@ export default function App() {
   const handleLoginAdmin = async (e) => {
     e.preventDefault();
     const { data, error } = await supabase.auth.signInWithPassword({ email: emailAdmin, password: senhaAdmin });
-    if (error) {
-  console.error('Erro do Supabase:', error);
-  return alert(`Erro no login: ${error.message}`);
-}
+    if (error) return alert('E-mail ou senha incorretos.');
 
     const { data: administrador } = await supabase.from('admin_users').select('user_id').eq('user_id', data.user.id).maybeSingle();
     if (!administrador) {
