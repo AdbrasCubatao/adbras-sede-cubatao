@@ -206,7 +206,10 @@ export default function App() {
   const handleLoginAdmin = async (e) => {
     e.preventDefault();
     const { data, error } = await supabase.auth.signInWithPassword({ email: emailAdmin, password: senhaAdmin });
-    if (error) return alert('E-mail ou senha incorretos.');
+    if (error) {
+  console.error('Erro do Supabase:', error);
+  return alert(`Erro no login: ${error.message}`);
+}
 
     const { data: administrador } = await supabase.from('admin_users').select('user_id').eq('user_id', data.user.id).maybeSingle();
     if (!administrador) {
