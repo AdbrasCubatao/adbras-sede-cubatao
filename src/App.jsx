@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 // Inicialização do Supabase com suas credenciais
-const SUPABASE_URL = 'https://vhffaeepsivfydethxqv.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_nu3gRFHZ_hEOIeQmI0a5Ag_oTjOTcp_eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoZmZhZWVwc2l2ZnlkZXRoeHF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk2OTM0ODAsImV4cCI6MjEwNTI2OTQ4MH0.5N040l1f4XJc2TZjd74H6UUCOBrRYuakctFKNLqalz0';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -27,6 +27,7 @@ export default function App() {
   const [departamentoAdmin, setDepartamentoAdmin] = useState('ujademc');
   const [tipoCadastroDept, setTipoCadastroDept] = useState('lideranca');
   const [salvandoDept, setSalvandoDept] = useState(false);
+  const [liderEditando, setLiderEditando] = useState(null);
   const [nomeLider, setNomeLider] = useState('');
   const [cargoLider, setCargoLider] = useState('');
   const [fotoLider, setFotoLider] = useState('');
@@ -222,6 +223,33 @@ export default function App() {
     setAdminLogado(false);
   };
 
+  const cancelarEdicaoLider = () => {
+    setLiderEditando(null);
+    setNomeLider(''); setCargoLider(''); setFotoLider('');
+  };
+
+  const editarLider = (lider) => {
+    setLiderEditando(lider.id);
+    setNomeLider(lider.nome);
+    setCargoLider(lider.cargo || '');
+    setFotoLider(lider.foto_url || '');
+  };
+
+  const excluirLider = async (lider) => {
+    if (!window.confirm(`Excluir o cadastro de ${lider.nome} deste departamento?`)) return;
+    setSalvandoDept(true);
+    try {
+      const { data, error } = await supabase.from('departamento_lideres')
+        .delete().eq('id', lider.id).eq('departamento_id', departamentoAdmin).select('id');
+      if (error) throw error;
+      if (!data?.length) throw new Error('O cadastro não foi excluído. Confira sua permissão de administrador.');
+      if (liderEditando === lider.id) cancelarEdicaoLider();
+      await carregarDepartamentos();
+    } catch (error) {
+      alert(`Não foi possível excluir: ${error.message}`);
+    } finally { setSalvandoDept(false); }
+  };
+
   const handleCadastroDepartamento = async (e) => {
     e.preventDefault();
     setSalvandoDept(true);
@@ -243,11 +271,22 @@ export default function App() {
       registro = { departamento_id: departamentoAdmin, tipo: tipoMidiaDept, arquivo_url: urlMidiaDept, legenda: legendaMidiaDept || null };
     }
 
-    const { error } = await supabase.from(tabela).insert(registro);
+    const editando = tipoCadastroDept === 'lideranca' && liderEditando !== null;
+    let resultado;
+    try {
+      resultado = editando
+        ? await supabase.from(tabela).update(registro).eq('id', liderEditando).eq('departamento_id', departamentoAdmin).select('id')
+        : await supabase.from(tabela).insert(registro).select('id');
+    } catch (error) {
+      setSalvandoDept(false);
+      return alert(`Não foi possível salvar: ${error.message}`);
+    }
+    const { data: salvos, error } = resultado;
     setSalvandoDept(false);
     if (error) return alert(`Não foi possível salvar: ${error.message}`);
 
-    setNomeLider(''); setCargoLider(''); setFotoLider('');
+    if (!salvos?.length) return alert('Nenhum registro foi salvo. Confira sua permissão de administrador.');
+    cancelarEdicaoLider();
     setTituloEventoDept(''); setDataEventoDept(''); setHorarioEventoDept(''); setLocalEventoDept('');
     setTituloAvisoDept(''); setConteudoAvisoDept('');
     setUrlMidiaDept(''); setLegendaMidiaDept('');
@@ -469,15 +508,35 @@ export default function App() {
                   <h3 className="text-sm font-bold text-slate-900">Cadastrar conteúdo</h3>
                 </div>
 
-                <select value={departamentoAdmin} onChange={(e) => setDepartamentoAdmin(e.target.value)} className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold">
+                <select value={departamentoAdmin} disabled={salvandoDept} onChange={(e) => { cancelarEdicaoLider(); setDepartamentoAdmin(e.target.value); }} className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold">
                   {departamentos.map((dept) => <option key={dept.id} value={dept.id}>{dept.nome} — {dept.sigla}</option>)}
                 </select>
 
                 <div className="grid grid-cols-2 gap-2">
                   {[['lideranca', '👤 Liderança'], ['evento', '📅 Evento'], ['aviso', '📢 Aviso'], ['midia', '📸 Galeria']].map(([tipo, label]) => (
-                    <button key={tipo} type="button" onClick={() => setTipoCadastroDept(tipo)} className={`p-2.5 rounded-xl text-[11px] font-bold ${tipoCadastroDept === tipo ? 'bg-[#0B1E3B] text-white' : 'bg-slate-100 text-slate-600'}`}>{label}</button>
+                    <button key={tipo} type="button" disabled={salvandoDept} onClick={() => { cancelarEdicaoLider(); setTipoCadastroDept(tipo); }} className={`p-2.5 rounded-xl text-[11px] font-bold ${tipoCadastroDept === tipo ? 'bg-[#0B1E3B] text-white' : 'bg-slate-100 text-slate-600'}`}>{label}</button>
                   ))}
                 </div>
+
+                {tipoCadastroDept === 'lideranca' && (
+                  <div className="space-y-3">
+                    <h4 className="font-bold text-sm">Líderes cadastrados</h4>
+                    {(departamentos.find(dept => dept.id === departamentoAdmin)?.lideres || []).map(lider => (
+                      <div key={lider.id} className="p-3 rounded-xl bg-slate-50 space-y-2">
+                        <div className="flex items-center gap-3">
+                          {lider.foto_url && <img src={lider.foto_url} alt={lider.nome} className="w-12 h-12 rounded-full object-cover" />}
+                          <div><p className="text-sm font-bold">{lider.nome}</p><p className="text-xs">{lider.cargo}</p></div>
+                        </div>
+                        <div className="flex gap-3">
+                          <button type="button" disabled={salvandoDept} onClick={() => editarLider(lider)} className="text-sm font-bold text-blue-700">Editar</button>
+                          <button type="button" disabled={salvandoDept} onClick={() => excluirLider(lider)} className="text-sm font-bold text-red-700">Excluir</button>
+                        </div>
+                      </div>
+                    ))}
+                    <p className="text-xs font-bold">{liderEditando !== null ? 'Editando líder selecionado' : 'Cadastrar novo líder'}</p>
+                    {liderEditando !== null && <button type="button" disabled={salvandoDept} onClick={cancelarEdicaoLider} className="text-sm underline">Cancelar edição</button>}
+                  </div>
+                )}
 
                 <form onSubmit={handleCadastroDepartamento} className="space-y-2.5">
                   {tipoCadastroDept === 'lideranca' && <>
@@ -503,7 +562,7 @@ export default function App() {
                     <input value={legendaMidiaDept} onChange={(e) => setLegendaMidiaDept(e.target.value)} placeholder="Legenda (opcional)" className="w-full text-xs p-3 bg-slate-50 border rounded-xl" />
                   </>}
 
-                  <button disabled={salvandoDept} className="w-full bg-amber-400 text-slate-900 py-3 rounded-xl font-extrabold text-xs disabled:opacity-60">{salvandoDept ? 'Salvando...' : '+ Publicar no Departamento'}</button>
+                  <button disabled={salvandoDept} className="w-full bg-amber-400 text-slate-900 py-3 rounded-xl font-extrabold text-xs disabled:opacity-60">{salvandoDept ? 'Salvando...' : (tipoCadastroDept === 'lideranca' && liderEditando !== null ? 'Salvar alterações' : '+ Publicar no Departamento')}</button>
                 </form>
               </section>
 
@@ -636,7 +695,9 @@ export default function App() {
           <div className="grid grid-cols-2 gap-3">
             {departamentos.map((dept) => (
               <button key={dept.id} onClick={() => setDepartamentoSelecionado(dept)} className="min-h-36 p-4 rounded-3xl shadow-sm text-left text-white active:scale-95 transition-all flex flex-col justify-between" style={{ background: dept.gradiente }}>
-                <span className="text-4xl">{dept.icon}</span>
+                {dept.id === 'cibec' ? (
+                  <img src="/logo-cibec.png" alt="CIBEC — Departamento de Mulheres" className="h-20 w-20 object-contain bg-white rounded-2xl p-2" />
+                ) : <span className="text-4xl">{dept.icon}</span>}
                 <div><h2 className="font-extrabold text-sm tracking-wide">{dept.nome}</h2><p className="text-[11px] text-white/80 mt-1">{dept.sigla}</p></div>
               </button>
             ))}
@@ -648,7 +709,9 @@ export default function App() {
         <main className="max-w-md mx-auto px-4 pt-6 pb-8 space-y-5">
           <button onClick={() => setDepartamentoSelecionado(null)} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">← Voltar aos Departamentos</button>
           <div className="text-white p-8 rounded-3xl text-center space-y-3 shadow-lg" style={{ background: departamentoSelecionado.gradiente }}>
-            <span className="text-6xl">{departamentoSelecionado.icon}</span>
+            {departamentoSelecionado.id === 'cibec' ? (
+              <img src="/logo-cibec.png" alt="CIBEC — Departamento de Mulheres" className="h-36 w-36 mx-auto object-contain bg-white rounded-3xl p-3" />
+            ) : <span className="text-6xl">{departamentoSelecionado.icon}</span>}
             <div><h1 className="text-2xl font-extrabold tracking-wide">{departamentoSelecionado.nome}</h1><p className="text-sm text-white/80 mt-1">{departamentoSelecionado.sigla}</p></div>
           </div>
 
@@ -660,7 +723,7 @@ export default function App() {
           <section className="bg-white p-5 rounded-3xl shadow-sm space-y-3">
             <div className="flex items-center justify-between"><h2 className="font-extrabold text-base">Liderança</h2><span className="text-xl">👤</span></div>
             {departamentoSelecionado.lideres.length > 0 ? departamentoSelecionado.lideres.map((lider) => (
-              <div key={lider.id} className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl"><div className="w-11 h-11 rounded-full bg-[#0B1E3B] text-white grid place-items-center font-bold">{lider.nome.charAt(0)}</div><div><p className="text-sm font-bold">{lider.nome}</p><p className="text-xs text-slate-500">{lider.cargo}</p></div></div>
+              <div key={lider.id} className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl"><div className="w-11 h-11 rounded-full bg-[#0B1E3B] text-white grid place-items-center font-bold">{lider.foto_url ? <img src={lider.foto_url} alt={lider.nome} className="w-11 h-11 rounded-full object-cover" /> : lider.nome.charAt(0)}</div><div><p className="text-sm font-bold">{lider.nome}</p><p className="text-xs text-slate-500">{lider.cargo}</p></div></div>
             )) : <p className="text-xs text-slate-400 bg-slate-50 p-4 rounded-2xl">A liderança será adicionada em breve.</p>}
           </section>
 
