@@ -674,7 +674,27 @@ export default function App() {
           <section className="bg-white p-5 rounded-3xl shadow-sm space-y-3">
             <div className="flex items-center justify-between"><h2 className="font-extrabold text-base">Liderança</h2><span className="text-xl">👤</span></div>
             {departamentoSelecionado.lideres.length > 0 ? departamentoSelecionado.lideres.map((lider) => (
-              <div key={lider.id} className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl"><div className="w-11 h-11 rounded-full bg-[#0B1E3B] text-white grid place-items-center font-bold">{lider.nome.charAt(0)}</div><div><p className="text-sm font-bold">{lider.nome}</p><p className="text-xs text-slate-500">{lider.cargo}</p></div></div>
+              <div
+  key={lider.id}
+  className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl"
+>
+  <div className="w-11 h-11 shrink-0 rounded-full overflow-hidden bg-[#0B1E3B] text-white grid place-items-center font-bold">
+    {lider.foto_url ? (
+      <img
+        src={lider.foto_url}
+        alt={lider.nome}
+        className="w-full h-full object-cover"
+      />
+    ) : (
+      lider.nome.charAt(0)
+    )}
+  </div>
+
+  <div>
+    <p className="text-sm font-bold">{lider.nome}</p>
+    <p className="text-xs text-slate-500">{lider.cargo}</p>
+  </div>
+</div>
             )) : <p className="text-xs text-slate-400 bg-slate-50 p-4 rounded-2xl">A liderança será adicionada em breve.</p>}
           </section>
 
