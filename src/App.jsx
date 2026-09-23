@@ -39,6 +39,7 @@ export default function App() {
   const [conteudoAvisoDept, setConteudoAvisoDept] = useState('');
   const [urlMidiaDept, setUrlMidiaDept] = useState('');
   const [legendaMidiaDept, setLegendaMidiaDept] = useState('');
+  const [redesForm, setRedesForm] = useState({ instagram_url: '', facebook_url: '', youtube_url: '' });
   const [tipoMidiaDept, setTipoMidiaDept] = useState('foto');
 
   // 1. LISTA DOS 11 BOTÕES DE ATALHO DO MENU
@@ -105,6 +106,9 @@ export default function App() {
         nome: dept.nome,
         sigla: dept.sigla,
         icon: dept.icone,
+        instagram_url: dept.instagram_url || '',
+        facebook_url: dept.facebook_url || '',
+        youtube_url: dept.youtube_url || '',
         descricao: dept.descricao,
         gradiente: dept.gradiente,
         lideres: lideres[dept.id] || [],
@@ -118,6 +122,7 @@ export default function App() {
       }));
 
       setDepartamentos(departamentosCompletos);
+      setDepartamentoSelecionado(atual => atual ? departamentosCompletos.find(dept => dept.id === atual.id) || atual : null);
   };
 
   useEffect(() => {
@@ -250,8 +255,56 @@ export default function App() {
     } finally { setSalvandoDept(false); }
   };
 
+  useEffect(() => {
+    const dept = departamentos.find(item => item.id === departamentoAdmin);
+    setRedesForm({
+      instagram_url: dept?.instagram_url || '',
+      facebook_url: dept?.facebook_url || '',
+      youtube_url: dept?.youtube_url || '',
+    });
+  }, [departamentoAdmin, departamentos]);
+
+  const redesCampos = [
+    { campo: 'instagram_url', nome: 'Instagram', dominios: ['instagram.com'], exemplo: 'https://www.instagram.com/seu.departamento/' },
+    { campo: 'facebook_url', nome: 'Facebook', dominios: ['facebook.com', 'fb.com'], exemplo: 'https://www.facebook.com/seu.departamento' },
+    { campo: 'youtube_url', nome: 'YouTube', dominios: ['youtube.com', 'youtu.be'], exemplo: 'https://www.youtube.com/@seu.departamento' },
+  ];
+
+  const linkRedeValido = (valor, dominios) => {
+    try {
+      const url = new URL(valor);
+      return url.protocol === 'https:' && !url.username && !url.password &&
+        dominios.some(dominio => url.hostname === dominio || url.hostname.endsWith('.' + dominio));
+    } catch { return false; }
+  };
+
+  const salvarRedesDepartamento = async () => {
+    const registro = {};
+    for (const rede of redesCampos) {
+      const valor = redesForm[rede.campo].trim();
+      if (valor && !linkRedeValido(valor, rede.dominios)) {
+        return alert('Confira o endereço do ' + rede.nome + '. Use um link HTTPS da própria rede.');
+      }
+      registro[rede.campo] = valor || null;
+    }
+    setSalvandoDept(true);
+    try {
+      const { data, error } = await supabase.from('departamentos').update(registro)
+        .eq('id', departamentoAdmin).select('id');
+      if (error) throw error;
+      if (!data?.length) throw new Error('Nenhum departamento foi atualizado. Confira sua permissão de administrador.');
+      await carregarDepartamentos();
+      alert('Redes sociais atualizadas!');
+    } catch (error) {
+      alert('Não foi possível salvar as redes: ' + error.message);
+    } finally {
+      setSalvandoDept(false);
+    }
+  };
+
   const handleCadastroDepartamento = async (e) => {
     e.preventDefault();
+    if (tipoCadastroDept === 'midia') return salvarRedesDepartamento();
     setSalvandoDept(true);
 
     let tabela;
@@ -513,7 +566,7 @@ export default function App() {
                 </select>
 
                 <div className="grid grid-cols-2 gap-2">
-                  {[['lideranca', '👤 Liderança'], ['evento', '📅 Evento'], ['aviso', '📢 Aviso'], ['midia', '📸 Galeria']].map(([tipo, label]) => (
+                  {[['lideranca', '👤 Liderança'], ['evento', '📅 Evento'], ['aviso', '📢 Aviso'], ['midia', '📸 Fotos e Vídeos']].map(([tipo, label]) => (
                     <button key={tipo} type="button" disabled={salvandoDept} onClick={() => { cancelarEdicaoLider(); setTipoCadastroDept(tipo); }} className={`p-2.5 rounded-xl text-[11px] font-bold ${tipoCadastroDept === tipo ? 'bg-[#0B1E3B] text-white' : 'bg-slate-100 text-slate-600'}`}>{label}</button>
                   ))}
                 </div>
@@ -557,12 +610,20 @@ export default function App() {
                   </>}
 
                   {tipoCadastroDept === 'midia' && <>
-                    <select value={tipoMidiaDept} onChange={(e) => setTipoMidiaDept(e.target.value)} className="w-full text-xs p-3 bg-slate-50 border rounded-xl"><option value="foto">Foto</option><option value="video">Vídeo</option></select>
-                    <input type="url" value={urlMidiaDept} onChange={(e) => setUrlMidiaDept(e.target.value)} placeholder="URL da foto ou vídeo" className="w-full text-xs p-3 bg-slate-50 border rounded-xl" required />
-                    <input value={legendaMidiaDept} onChange={(e) => setLegendaMidiaDept(e.target.value)} placeholder="Legenda (opcional)" className="w-full text-xs p-3 bg-slate-50 border rounded-xl" />
+                    <p className="text-xs text-slate-600">Cadastre as redes deste departamento. Deixe em branco para ocultar um botão. Para remover um link, apague o campo e salve.</p>
+                    {redesCampos.map(rede => (
+                      <label key={rede.campo} className="block text-xs font-bold">
+                        {rede.nome}
+                        <input type="url" disabled={salvandoDept}
+                          value={redesForm[rede.campo]}
+                          onChange={e => setRedesForm(atual => ({ ...atual, [rede.campo]: e.target.value }))}
+                          placeholder={rede.exemplo}
+                          className="mt-1 w-full text-xs p-3 bg-slate-50 border rounded-xl" />
+                      </label>
+                    ))}
                   </>}
 
-                  <button disabled={salvandoDept} className="w-full bg-amber-400 text-slate-900 py-3 rounded-xl font-extrabold text-xs disabled:opacity-60">{salvandoDept ? 'Salvando...' : (tipoCadastroDept === 'lideranca' && liderEditando !== null ? 'Salvar alterações' : '+ Publicar no Departamento')}</button>
+                  <button disabled={salvandoDept} className="w-full bg-amber-400 text-slate-900 py-3 rounded-xl font-extrabold text-xs disabled:opacity-60">{salvandoDept ? 'Salvando...' : (tipoCadastroDept === 'midia' ? 'Salvar redes sociais' : tipoCadastroDept === 'lideranca' && liderEditando !== null ? 'Salvar alterações' : '+ Publicar no Departamento')}</button>
                 </form>
               </section>
 
@@ -746,8 +807,21 @@ export default function App() {
           </section>
 
           <section className="bg-white p-5 rounded-3xl shadow-sm space-y-3">
-            <div className="flex items-center justify-between"><h2 className="font-extrabold text-base">Galeria</h2><span className="text-xl">📸</span></div>
-            {departamentoSelecionado.galeria.length > 0 ? <div className="grid grid-cols-3 gap-2">{departamentoSelecionado.galeria.map((foto) => <img key={foto.id} src={foto.url} alt={foto.legenda || departamentoSelecionado.nome} className="w-full aspect-square object-cover rounded-xl" />)}</div> : <p className="text-xs text-slate-400 bg-slate-50 p-4 rounded-2xl">As fotos e vídeos serão publicados aqui.</p>}
+            <div className="flex items-center justify-between"><h2 className="font-extrabold text-base">Fotos e Vídeos</h2><span className="text-xl">📸</span></div>
+            {redesCampos.some(rede => linkRedeValido(departamentoSelecionado[rede.campo], rede.dominios)) ? (
+              <>
+                <p className="text-sm text-slate-600">Acompanhe os registros dos nossos encontros nas redes do departamento.</p>
+                <div className="flex flex-col gap-3">
+                  {redesCampos.filter(rede => linkRedeValido(departamentoSelecionado[rede.campo], rede.dominios)).map(rede => (
+                    <a key={rede.campo} href={departamentoSelecionado[rede.campo]}
+                      target="_blank" rel="noopener noreferrer"
+                      className="block rounded-xl bg-[#0B1E3B] text-white p-4 text-sm font-bold text-center">
+                      Abrir {rede.nome} ↗
+                    </a>
+                  ))}
+                </div>
+              </>
+            ) : <p className="text-xs text-slate-500 bg-slate-50 p-4 rounded-2xl">Em breve, os links das redes sociais estarão disponíveis aqui.</p>}
           </section>
 
           <button onClick={() => setPaginaAtual('contatos')} className="w-full bg-[#0B1E3B] text-white py-4 rounded-2xl text-sm font-extrabold shadow-lg active:scale-95 transition-all">Quero participar 💛</button>
