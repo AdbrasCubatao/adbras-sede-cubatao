@@ -756,7 +756,9 @@ export default function App() {
           <div className="grid grid-cols-2 gap-3">
             {departamentos.map((dept) => (
               <button key={dept.id} onClick={() => setDepartamentoSelecionado(dept)} className="min-h-36 p-4 rounded-3xl shadow-sm text-left text-white active:scale-95 transition-all flex flex-col justify-between" style={{ background: dept.gradiente }}>
-                {dept.id === 'ujademc' ? (
+                {dept.id === 'univadem' ? (
+                  <img src="/logo-univadem.png" alt="UNIVADEM — Departamento de Homens" className="h-20 w-full object-contain bg-white rounded-2xl p-2" />
+                ) : dept.id === 'ujademc' ? (
                   <img src="/logo-ujademc.png" alt="UJADEMC — Juventude AD Brás Cubatão" className="h-20 w-full object-contain bg-white rounded-2xl p-2" />
                 ) : dept.id === 'cibec' ? (
                   <img src="/logo-cibec.png" alt="CIBEC — Departamento de Mulheres" className="h-20 w-20 object-contain bg-white rounded-2xl p-2" />
@@ -772,7 +774,9 @@ export default function App() {
         <main className="max-w-md mx-auto px-4 pt-6 pb-8 space-y-5">
           <button onClick={() => setDepartamentoSelecionado(null)} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">← Voltar aos Departamentos</button>
           <div className="text-white p-8 rounded-3xl text-center space-y-3 shadow-lg" style={{ background: departamentoSelecionado.gradiente }}>
-            {departamentoSelecionado.id === 'ujademc' ? (
+            {departamentoSelecionado.id === 'univadem' ? (
+              <img src="/logo-univadem.png" alt="UNIVADEM — Fé que conecta, missão que transforma" className="w-full h-auto mx-auto object-contain bg-white rounded-3xl p-3" />
+            ) : departamentoSelecionado.id === 'ujademc' ? (
               <img src="/logo-ujademc.png" alt="UJADEMC — Juventude AD Brás Cubatão" className="w-full h-auto mx-auto object-contain bg-white rounded-3xl p-3" />
             ) : departamentoSelecionado.id === 'cibec' ? (
               <img src="/logo-cibec.png" alt="CIBEC — Departamento de Mulheres" className="h-36 w-36 mx-auto object-contain bg-white rounded-3xl p-3" />
