@@ -111,6 +111,58 @@ function AdminVersiculos() {
   </section>;
 }
 
+const REDES_IGREJA_PADRAO = { instagram_url: 'https://www.instagram.com/adbras.cubatao/', facebook_url: 'https://www.facebook.com/share/p/14tK88qf5Tj/', youtube_url: 'https://www.youtube.com/@adbrascubatao', whatsapp_url: '' };
+const REDES_IGREJA_CAMPOS = [
+  {campo:'whatsapp_url',nome:'WhatsApp',icone:'◉',cor:'#25d366',hosts:['wa.me','whatsapp.com']},
+  {campo:'instagram_url',nome:'Instagram',icone:'◎',cor:'linear-gradient(135deg,#6b3ad4,#e43576,#f7b43b)',hosts:['instagram.com']},
+  {campo:'youtube_url',nome:'YouTube',icone:'▶',cor:'#f10e16',hosts:['youtube.com','youtu.be']},
+  {campo:'facebook_url',nome:'Facebook',icone:'f',cor:'#2475df',hosts:['facebook.com','fb.com','fb.me']}
+];
+function redeIgrejaValida(valor, rede) {
+  if (!valor) return true;
+  try { const u=new URL(valor);return u.protocol==='https:' && !u.username && !u.password && rede.hosts.some(h=>u.hostname===h || u.hostname.endsWith('.'+h)); } catch {return false;}
+}
+function RedesIgreja({admin=false}) {
+  const [links,setLinks]=useState({...REDES_IGREJA_PADRAO});
+  const [carregando,setCarregando]=useState(true), [salvando,setSalvando]=useState(false), [erroCarga,setErroCarga]=useState(false), [mensagem,setMensagem]=useState('');
+  useEffect(()=>{
+    let ativo=true;
+    (async()=>{
+      try {
+        const {data,error}=await supabase.from('redes_igreja').select('instagram_url,facebook_url,youtube_url,whatsapp_url').eq('id',1).maybeSingle();
+        if(error || !data) throw new Error('Configuração não encontrada. Execute o SQL das redes da igreja.');
+        if(ativo) setLinks(data);
+      } catch(e) {if(ativo){setErroCarga(true);setMensagem(e.message);}}
+      finally {if(ativo)setCarregando(false);}
+    })();
+    return ()=>{ativo=false;};
+  },[]);
+  async function salvar(e) {
+    e.preventDefault();setMensagem('');
+    const valores=Object.fromEntries(REDES_IGREJA_CAMPOS.map(r=>[r.campo,(links[r.campo]||'').trim()]));
+    const invalida=REDES_IGREJA_CAMPOS.find(r=>!redeIgrejaValida(valores[r.campo],r));
+    if(invalida){setMensagem('Informe um link HTTPS válido de '+invalida.nome+'.');return;}
+    setSalvando(true);
+    try {
+      const {data,error}=await supabase.from('redes_igreja').update(valores).eq('id',1).select('id');
+      if(error)throw error;
+      if(!data?.length)throw new Error('Não foi possível salvar. Confira sua permissão de administrador.');
+      setLinks(valores);setMensagem('Links salvos! Volte à home para conferir.');
+    }catch(e){setMensagem(e.message);}finally{setSalvando(false);}
+  }
+  if(admin)return <section className="bg-white p-5 rounded-3xl shadow-sm space-y-3">
+    <h3 className="font-bold">Redes sociais da igreja — Home</h3>
+    <p className="text-xs text-slate-500">Cole o link completo. Deixe vazio para ocultar o botão. Para WhatsApp, use o link do contato, grupo ou canal.</p>
+    <form onSubmit={salvar} className="space-y-3">
+      {REDES_IGREJA_CAMPOS.map(r=><label key={r.campo} className="block text-xs">{r.nome}<input type="url" placeholder="https://" value={links[r.campo]||''} disabled={carregando || salvando || erroCarga} onChange={e=>setLinks({...links,[r.campo]:e.target.value})} className="block w-full border rounded-xl p-2" /></label>)}
+      <button disabled={carregando || salvando || erroCarga} className="bg-[#0B1E3B] text-white rounded-xl px-4 py-2 text-sm">{carregando?'Carregando…':salvando?'Salvando…':'Salvar redes da igreja'}</button>
+    </form><p role="status" className="text-xs">{mensagem}</p>
+  </section>;
+  const visiveis=REDES_IGREJA_CAMPOS.filter(r=>links[r.campo] && redeIgrejaValida(links[r.campo],r));
+  if(!visiveis.length)return null;
+  return <section className="social-section"><h2>Conecte-se conosco</h2><div>{visiveis.map(r=><a key={r.campo} href={links[r.campo]} aria-label={'Abrir '+r.nome+' da igreja'} title={r.nome} target="_blank" rel="noopener noreferrer" style={{background:r.cor}}>{r.icone}</a>)}</div></section>;
+}
+
 export default function App() {
   // Estado de Navegação Central
   const [paginaAtual, setPaginaAtual] = useState('home');
@@ -543,7 +595,7 @@ export default function App() {
           </section>
 
           <VersiculoDoDia />
-          <section className="social-section"><h2>Conecte-se conosco</h2><div><a href="#whatsapp" aria-label="WhatsApp">◉</a><a href="#instagram" aria-label="Instagram">◎</a><a href="https://youtube.com" aria-label="YouTube">▶</a><a href="#facebook" aria-label="Facebook">f</a></div></section>
+          <RedesIgreja />
           <nav className="bottom-nav">
             <button onClick={() => setPaginaAtual('biblia')}><span>▤</span>Bíblia</button>
             <button onClick={() => setPaginaAtual('agenda')}><span>▦</span>Agenda</button>
@@ -656,6 +708,7 @@ export default function App() {
                 <button onClick={handleLogoutAdmin} className="text-xs text-red-600 font-bold bg-red-50 px-2.5 py-1 rounded-lg">Sair</button>
               </div>
 
+              <RedesIgreja admin />
               <AdminVersiculos />
               {/* PAINEL: GERENCIAR DEPARTAMENTOS */}
               <section className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-4">
