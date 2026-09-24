@@ -44,7 +44,6 @@ export default function App() {
 
   // 1. LISTA DOS 11 BOTÕES DE ATALHO DO MENU
   const atalhos = [
-    { id: 'home', titulo: 'Início', icon: '⌂' },
     { id: 'biblia', titulo: 'Bíblia', icon: '📖' },
     { id: 'agenda', titulo: 'Agenda', icon: '📅' },
     { id: 'cultos', titulo: 'Cultos', icon: '📺', tag: 'AO VIVO' },
@@ -442,7 +441,6 @@ export default function App() {
           <section className="verse-banner"><div><p>❝ Eu e a minha casa serviremos<br />ao Senhor.❞</p><strong>Josué 24:15</strong></div><span>✝</span></section>
           <section className="social-section"><h2>Conecte-se conosco</h2><div><a href="#whatsapp" aria-label="WhatsApp">◉</a><a href="#instagram" aria-label="Instagram">◎</a><a href="https://youtube.com" aria-label="YouTube">▶</a><a href="#facebook" aria-label="Facebook">f</a></div></section>
           <nav className="bottom-nav">
-            <button onClick={() => setPaginaAtual('home')}><span>⌂</span>Início</button>
             <button onClick={() => setPaginaAtual('biblia')}><span>▤</span>Bíblia</button>
             <button onClick={() => setPaginaAtual('agenda')}><span>▦</span>Agenda</button>
             <button onClick={() => setPaginaAtual('avisos')}><span>⚑</span>Avisos</button>
