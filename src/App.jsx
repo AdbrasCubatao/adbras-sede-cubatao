@@ -163,6 +163,68 @@ function RedesIgreja({admin=false}) {
   return <section className="social-section"><h2>Conecte-se conosco</h2><div>{visiveis.map(r=><a key={r.campo} href={links[r.campo]} aria-label={'Abrir '+r.nome+' da igreja'} title={r.nome} target="_blank" rel="noopener noreferrer" style={{background:r.cor}}>{r.icone}</a>)}</div></section>;
 }
 
+const SEDE_LOCAL = {id:'sede-local', nome:'AD Brás Sede Cubatão', endereco:'Rua Agostinho Lourenço Vilete, nº 125 – Jardim Nova República, Cubatão – SP', sede:true, ativo:true};
+function LocaisIgrejas({admin=false}) {
+  const novo = () => ({nome:'',endereco:'',bairro:'',cidade:'Cubatão',uf:'SP',horarios:'',sede:false,ativo:true});
+  const [lista,setLista]=useState([]), [form,setForm]=useState(novo), [id,setId]=useState(null), [busca,setBusca]=useState(''), [carregando,setCarregando]=useState(true), [erro,setErro]=useState(''), [mensagem,setMensagem]=useState(''), [salvando,setSalvando]=useState(false);
+  async function carregar() {
+    setCarregando(true);setErro('');
+    try {
+      let consulta=supabase.from('igrejas_locais').select('*').order('sede',{ascending:false}).order('nome');
+      if(!admin)consulta=consulta.eq('ativo',true);
+      const {data,error}=await consulta;
+      if(error)throw error;
+      setLista(data || []);
+    }catch(e){setErro(admin?'Não foi possível carregar os endereços. Confira se executou o SQL e tente novamente.':'Não foi possível atualizar a lista de congregações. Tente novamente.');if(!admin)setLista([SEDE_LOCAL]);}
+    finally{setCarregando(false);}
+  }
+  useEffect(()=>{carregar();},[admin]);
+  function limpar(){setId(null);setForm(novo());}
+  async function salvar(e){
+    e.preventDefault();setSalvando(true);setMensagem('');
+    try{
+      const valores={...form,nome:form.nome.trim(),endereco:form.endereco.trim(),bairro:form.bairro.trim(),cidade:form.cidade.trim(),uf:form.uf.trim().toUpperCase(),horarios:form.horarios.trim()};
+      if(!valores.nome || !valores.endereco || !valores.cidade || !/^[A-Z]{2}$/.test(valores.uf))throw new Error('Preencha nome, endereço, cidade e UF com duas letras.');
+      const {data,error}=id ? await supabase.from('igrejas_locais').update(valores).eq('id',id).select('id') : await supabase.from('igrejas_locais').insert(valores).select('id');
+      if(error)throw error;if(!data?.length)throw new Error('Nada foi salvo. Confira sua permissão de administrador.');
+      limpar();await carregar();setMensagem('Endereço salvo! A página de localização será atualizada ao abri-la novamente.');
+    }catch(e){setMensagem(e.message);}finally{setSalvando(false);}
+  }
+  async function excluir(item){
+    if(!window.confirm('Excluir '+item.nome+'? Você também pode apenas desativar o cadastro em Editar.'))return;
+    setSalvando(true);setMensagem('');
+    try{const {data,error}=await supabase.from('igrejas_locais').delete().eq('id',item.id).select('id');if(error)throw error;if(!data?.length)throw new Error('Nada foi excluído. Confira sua permissão.');if(id===item.id)limpar();await carregar();setMensagem('Cadastro excluído.');}catch(e){setMensagem(e.message);}finally{setSalvando(false);}
+  }
+  const normalizar=s=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  const encontrados=lista.filter(v=>normalizar([v.nome,v.endereco,v.bairro,v.cidade].filter(Boolean).join(' ')).includes(normalizar(busca)));
+  const enderecoCompleto=v=>[v.endereco,v.bairro,v.cidade,v.uf].filter(Boolean).join(', ');
+  return <section className="space-y-4">
+    {admin ? <div className="bg-white p-5 rounded-3xl shadow-sm space-y-3">
+      <h3 className="font-bold">Endereços das igrejas</h3><p className="text-xs text-slate-500">Cadastre a sede e as congregações. Mudou de endereço? Use Editar. Desative um local para ocultá-lo da página pública.</p>
+      <form onSubmit={salvar} className="space-y-3">
+        <fieldset disabled={salvando || carregando || !!erro} className="space-y-3">
+          {[['nome','Nome da igreja',true],['endereco','Rua, número e complemento',true],['bairro','Bairro',false],['cidade','Cidade',true],['uf','UF',true],['horarios','Dias e horários dos cultos (opcional)',false]].map(([campo,label,obrigatorio])=><label key={campo} className="block text-xs">{label}<input required={obrigatorio} maxLength={campo==='uf'?2:300} value={form[campo]} onChange={e=>setForm({...form,[campo]:e.target.value})} className="block w-full border p-2 rounded-xl" /></label>)}
+          <label className="block text-xs"><input type="checkbox" checked={form.sede} onChange={e=>setForm({...form,sede:e.target.checked})} /> Identificar como sede</label>
+          <label className="block text-xs"><input type="checkbox" checked={form.ativo} onChange={e=>setForm({...form,ativo:e.target.checked})} /> Mostrar na página de localização</label>
+          <button className="bg-[#0B1E3B] text-white rounded-xl px-4 py-2 text-sm">{salvando?'Salvando…':id?'Salvar alteração':'Cadastrar igreja'}</button>
+          {id && <button type="button" onClick={limpar} className="ml-3 text-sm">Cancelar edição</button>}
+        </fieldset>
+      </form><p role="status" className="text-xs">{mensagem}</p>
+    </div> : <div className="bg-[#0B1E3B] text-white p-6 rounded-3xl space-y-3"><span className="text-3xl" aria-hidden="true">📍</span><h1 className="text-2xl font-bold">Uma igreja perto de você</h1><p className="text-sm leading-relaxed">Há um lugar para você e sua família aqui. Conheça nossas igrejas e encontre uma congregação para adorar a Deus e caminhar conosco. Será uma alegria receber você!</p></div>}
+    <label className="block text-sm">Buscar por igreja, bairro ou cidade<input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Digite o nome ou o bairro" className="mt-2 block w-full border rounded-xl p-3 bg-white text-sm" /></label>
+    {carregando && <p role="status" className="text-sm">Carregando endereços…</p>}
+    {erro && <div role="alert" className="text-sm bg-amber-50 p-3 rounded-xl">{erro}<button onClick={carregar} className="block underline mt-2">Tentar novamente</button></div>}
+    {!carregando && !erro && !encontrados.length && <p className="bg-white p-4 rounded-xl text-sm">{busca?'Nenhuma igreja encontrada. Tente outro bairro ou nome.':admin?'Cadastre a primeira igreja acima.':'Em breve, os endereços das nossas igrejas estarão disponíveis aqui.'}</p>}
+    <div className={admin?'max-h-96 overflow-y-auto space-y-3':'space-y-4'}>{encontrados.map(v=><article key={v.id} className={'bg-white p-5 rounded-3xl shadow-sm space-y-3 border '+(v.sede?'border-amber-400':'border-slate-100')}>
+      {v.sede && <span className="text-xs font-bold text-amber-700">SEDE</span>}
+      <h2 className="font-bold text-lg">{v.nome}</h2><p className="text-sm text-slate-600">{enderecoCompleto(v)}</p>
+      {v.horarios && <p className="text-sm text-slate-600">Cultos: {v.horarios}</p>}
+      <a href={'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(enderecoCompleto(v))} target="_blank" rel="noopener noreferrer" aria-label={'Como chegar a '+v.nome} className="block bg-[#0B1E3B] text-white py-3 rounded-xl text-sm font-bold text-center">📍 Como chegar</a>
+      {admin && <div className="text-xs space-x-4"><span>{v.ativo?'Visível':'Oculta'}</span><button disabled={salvando} className="underline" onClick={()=>{setId(v.id);setForm({nome:v.nome,endereco:v.endereco,bairro:v.bairro,cidade:v.cidade,uf:v.uf,horarios:v.horarios,sede:v.sede,ativo:v.ativo});setMensagem('Editando '+v.nome+'. O formulário está acima.');}}>Editar</button><button disabled={salvando} onClick={()=>excluir(v)} className="text-red-600 underline">Excluir</button></div>}
+    </article>)}</div>
+  </section>;
+}
+
 export default function App() {
   // Estado de Navegação Central
   const [paginaAtual, setPaginaAtual] = useState('home');
@@ -351,7 +413,6 @@ export default function App() {
   const [novoPedido, setNovoPedido] = useState('');
   const [isAnonimo, setIsAnonimo] = useState(false);
 
-  const [congregacoes, setCongregacoes] = useState([]);
   const [novaNome, setNovaNome] = useState('');
   const [novoEndereco, setNovoEndereco] = useState('');
   const [novoPastor, setNovoPastor] = useState('');
@@ -708,6 +769,7 @@ export default function App() {
                 <button onClick={handleLogoutAdmin} className="text-xs text-red-600 font-bold bg-red-50 px-2.5 py-1 rounded-lg">Sair</button>
               </div>
 
+              <LocaisIgrejas admin />
               <RedesIgreja admin />
               <AdminVersiculos />
               {/* PAINEL: GERENCIAR DEPARTAMENTOS */}
@@ -992,18 +1054,7 @@ export default function App() {
       {paginaAtual === 'localizacao' && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">← Voltar ao Menu Principal</button>
-          <h1 className="text-2xl font-bold">Nossas Igrejas</h1>
-          <div className="bg-white p-5 rounded-3xl shadow-sm border-2 border-amber-400 space-y-3">
-            <h2 className="text-lg font-bold">ADBrás Sede Cubatão</h2>
-            <p className="text-xs text-slate-600">Rua Agostinho Lourenço Vilete, nº 125 – Jardim Nova República, Cubatão – SP</p>
-            <a href="https://maps.google.com/?q=Rua+Agostinho+Lourenco+Vilete+125+Cubatao+SP" target="_blank" rel="noreferrer" className="block bg-[#0B1E3B] text-white py-3 rounded-xl text-xs font-bold text-center">📍 Ver rota no Google Maps</a>
-          </div>
-          {congregacoes.map((cong) => (
-            <div key={cong.id} className="bg-white rounded-3xl shadow-sm overflow-hidden">
-              {cong.foto && <img src={cong.foto} alt={cong.nome} className="w-full h-36 object-cover" />}
-              <div className="p-4 space-y-1"><h2 className="font-bold text-sm">{cong.nome}</h2><p className="text-xs text-slate-600">{cong.endereco}</p><p className="text-xs text-slate-500">Dirigente: {cong.pastor}</p></div>
-            </div>
-          ))}
+          <LocaisIgrejas />
         </main>
       )}
 
