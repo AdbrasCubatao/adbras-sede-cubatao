@@ -7,6 +7,110 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+const diaBrasilia = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+const CACHE_VERSOS = 'adbras-versiculos-v1';
+function CreditosBiblia() {
+  return <details className="text-xs mt-3"><summary className="cursor-pointer">Sobre a tradução BLIVRE</summary><p className="mt-2">Bíblia Livre (BLIVRE), © 2018 Diego Santos, Mario Sérgio e Marco Teles. <a href="https://sites.google.com/site/biblialivre/" target="_blank" rel="noopener noreferrer" className="underline">Fonte e autores</a>. <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer" className="underline">Licença CC BY 4.0</a>. Textos consultados no eBible.org. Ao editar um texto, indique qualquer adaptação.</p></details>;
+}
+function VersiculoDoDia() {
+  const [lista, setLista] = useState([]);
+  const [dia, setDia] = useState(diaBrasilia);
+  useEffect(() => {
+    let vivo = true;
+    let buscando = false;
+    let ultimoDia = '';
+    let ultimaTentativa = 0;
+    const atualizar = async () => {
+      if (document.hidden || buscando) return;
+      const hoje = diaBrasilia();
+      setDia(hoje);
+      try {
+        const salvo = JSON.parse(localStorage.getItem(CACHE_VERSOS) || 'null');
+        if (Array.isArray(salvo?.lista)) {
+          setLista(salvo.lista);
+          if (salvo.dia === hoje) return;
+        }
+      } catch { /* armazenamento indisponível */ }
+      if (ultimoDia === hoje || Date.now() - ultimaTentativa < 60000) return;
+      buscando = true; ultimaTentativa = Date.now();
+      try {
+        const { data, error } = await supabase.from('versiculos').select('id,texto,referencia,data,versao,fonte_url').eq('ativo', true).order('data').limit(1000);
+        if (error) throw error;
+        if (!vivo) return;
+        ultimoDia = hoje; setLista(data || []);
+        try { localStorage.setItem(CACHE_VERSOS, JSON.stringify({dia: hoje, lista: data || []})); } catch {}
+      } catch { /* mantém a cópia local em caso de falha */ }
+      finally { buscando = false; }
+    };
+    atualizar();
+    const timer = setInterval(atualizar, 60000);
+    document.addEventListener('visibilitychange', atualizar);
+    window.addEventListener('adbras-versiculos', atualizar);
+    return () => { vivo = false; clearInterval(timer); document.removeEventListener('visibilitychange', atualizar); window.removeEventListener('adbras-versiculos', atualizar); };
+  }, []);
+  const anteriores = lista.filter(v => v.data <= dia);
+  const indice = anteriores.length ? Math.floor((Date.parse(dia+'T00:00:00Z') - Date.parse(anteriores[0].data+'T00:00:00Z')) / 86400000) % anteriores.length : 0;
+  const verso = lista.find(v => v.data === dia) || anteriores[indice];
+  return <section className="verse-banner" style={{height:'auto', minHeight:138, display:'block'}}>
+    <h2 className="text-sm font-bold mb-3">Versículo do dia</h2>
+    {verso ? <><p>“{verso.texto}”</p><strong>{verso.referencia} · {verso.versao}</strong><a href={verso.fonte_url} target="_blank" rel="noopener noreferrer" className="text-xs underline">Ler na fonte</a></> : <p className="text-sm">O versículo do dia estará disponível em breve.</p>}
+    <CreditosBiblia />
+  </section>;
+}
+function AdminVersiculos() {
+  const vazio = {texto:'', referencia:'', data:diaBrasilia(), ativo:true, versao:'BLIVRE', fonte_url:'https://ebible.org/porbr2018/'};
+  const [lista,setLista] = useState([]), [form,setForm] = useState(vazio), [id,setId] = useState(null), [ocupado,setOcupado] = useState(false), [mensagem,setMensagem] = useState(''), [busca,setBusca] = useState('');
+  const carregar = async () => {
+    const {data,error} = await supabase.from('versiculos').select('*').order('data').limit(1000);
+    if(error) setMensagem('Não foi possível carregar. Execute o SQL dos versículos e confira sua permissão.');
+    else setLista(data || []);
+  };
+  useEffect(() => {carregar();}, []);
+  const limpar = () => {setId(null);setForm({...vazio});};
+  const salvar = async e => {
+    e.preventDefault();setOcupado(true);setMensagem('');
+    try {
+      const payload = {...form,texto:form.texto.trim(),referencia:form.referencia.trim()};
+      if(!payload.texto || !payload.referencia) throw new Error('Preencha o texto e a referência.');
+      const url = new URL(payload.fonte_url); if(url.protocol !== 'https:') throw new Error('Use uma fonte com https://.');
+      const resposta = id ? await supabase.from('versiculos').update(payload).eq('id',id).select('id') : await supabase.from('versiculos').insert(payload).select('id');
+      if(resposta.error) throw new Error(resposta.error.code==='23505' ? 'Já existe um versículo nessa data. Edite o registro existente ou escolha outra data.' : resposta.error.message);
+      if(!resposta.data?.length) throw new Error('Registro não salvo. Confira a permissão de administrador.');
+      try {localStorage.removeItem(CACHE_VERSOS);} catch {}
+      limpar(); await carregar();setMensagem('Versículo salvo!');
+    } catch(e) {setMensagem(e.message);} finally {setOcupado(false);}
+  };
+  const excluir = async v => {
+    if(!window.confirm('Excluir '+v.referencia+' da data '+v.data+'?')) return;
+    setOcupado(true);
+    try {
+      const {data,error} = await supabase.from('versiculos').delete().eq('id',v.id).select('id');
+      if(error || !data?.length) throw new Error(error?.message || 'Registro não excluído.');
+      try {localStorage.removeItem(CACHE_VERSOS);} catch {}
+      if(id===v.id) limpar(); await carregar();setMensagem('Versículo excluído.');
+    } catch(e) {setMensagem(e.message);} finally {setOcupado(false);}
+  };
+  return <section className="bg-white p-5 rounded-3xl shadow-sm space-y-3">
+    <h3 className="font-bold">Versículo do dia</h3>
+    <p className="text-xs text-slate-500">Cadastre um texto por data (horário de Brasília). Dias sem cadastro usam novamente os textos anteriores ativos. Os visitantes recebem alterações na próxima atualização diária.</p>
+    <form onSubmit={salvar} className="space-y-3">
+      <label className="block text-xs">Data<input required type="date" value={form.data} onChange={e=>setForm({...form,data:e.target.value})} className="block w-full border rounded-xl p-2" /></label>
+      <label className="block text-xs">Referência<input required value={form.referencia} onChange={e=>setForm({...form,referencia:e.target.value})} className="block w-full border rounded-xl p-2" /></label>
+      <label className="block text-xs">Texto<textarea required rows={4} value={form.texto} onChange={e=>setForm({...form,texto:e.target.value})} className="block w-full border rounded-xl p-2" /></label>
+      <label className="block text-xs">Versão<input required value={form.versao} onChange={e=>setForm({...form,versao:e.target.value})} className="block w-full border rounded-xl p-2" /></label>
+      <label className="block text-xs">Link da fonte<input required type="url" value={form.fonte_url} onChange={e=>setForm({...form,fonte_url:e.target.value})} className="block w-full border rounded-xl p-2" /></label>
+      <label className="block text-xs"><input type="checkbox" checked={form.ativo} onChange={e=>setForm({...form,ativo:e.target.checked})} /> Ativo</label>
+      <button disabled={ocupado} className="bg-[#0B1E3B] text-white rounded-xl px-4 py-2 text-sm">{ocupado?'Aguarde…':id?'Salvar alteração':'Cadastrar'}</button>
+      {id && <button type="button" onClick={limpar} className="ml-3 text-sm">Cancelar edição</button>}
+    </form>
+    <p role="status" className="text-xs">{mensagem}</p>
+    <input placeholder="Buscar referência ou data" value={busca} onChange={e=>setBusca(e.target.value)} className="w-full border p-2 rounded-xl text-xs" />
+    <p className="text-xs">{lista.length} versículos cadastrados</p>
+    <div className="max-h-80 overflow-y-auto space-y-2">{lista.filter(v=>(v.referencia+' '+v.data).toLowerCase().includes(busca.toLowerCase())).map(v=><div key={v.id} className="bg-slate-50 rounded-xl p-3 text-xs"><b>{v.data} · {v.referencia}</b><p>{v.ativo?'Ativo':'Inativo'}</p><button disabled={ocupado} onClick={()=>{setId(v.id);setForm({texto:v.texto,referencia:v.referencia,data:v.data,ativo:v.ativo,versao:v.versao,fonte_url:v.fonte_url});}} className="mr-4 underline">Editar</button><button disabled={ocupado} onClick={()=>excluir(v)} className="text-red-600 underline">Excluir</button></div>)}</div>
+    <CreditosBiblia />
+  </section>;
+}
+
 export default function App() {
   // Estado de Navegação Central
   const [paginaAtual, setPaginaAtual] = useState('home');
@@ -438,7 +542,7 @@ export default function App() {
             </div>
           </section>
 
-          <section className="verse-banner"><div><p>❝ Eu e a minha casa serviremos<br />ao Senhor.❞</p><strong>Josué 24:15</strong></div><span>✝</span></section>
+          <VersiculoDoDia />
           <section className="social-section"><h2>Conecte-se conosco</h2><div><a href="#whatsapp" aria-label="WhatsApp">◉</a><a href="#instagram" aria-label="Instagram">◎</a><a href="https://youtube.com" aria-label="YouTube">▶</a><a href="#facebook" aria-label="Facebook">f</a></div></section>
           <nav className="bottom-nav">
             <button onClick={() => setPaginaAtual('biblia')}><span>▤</span>Bíblia</button>
@@ -552,6 +656,7 @@ export default function App() {
                 <button onClick={handleLogoutAdmin} className="text-xs text-red-600 font-bold bg-red-50 px-2.5 py-1 rounded-lg">Sair</button>
               </div>
 
+              <AdminVersiculos />
               {/* PAINEL: GERENCIAR DEPARTAMENTOS */}
               <section className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-4">
                 <div className="border-b pb-2 border-slate-100">
