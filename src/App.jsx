@@ -225,6 +225,49 @@ function LocaisIgrejas({admin=false}) {
   </section>;
 }
 
+const cacheLivros = new Map();
+function BibliaInterna() {
+  const lerPreferencias = () => {try {return JSON.parse(localStorage.getItem('adbras-leitura') || '{}');}catch{return {};}};
+  const [preferencias] = useState(lerPreferencias);
+  const [indice,setIndice]=useState([]), [livro,setLivro]=useState(preferencias.livro || 'JHN'), [capitulo,setCapitulo]=useState(Number.isInteger(preferencias.capitulo)?preferencias.capitulo:1);
+  const [tamanho,setTamanho]=useState(Math.min(28,Math.max(16,Number(preferencias.tamanho)||20))), [escuro,setEscuro]=useState(!!preferencias.escuro);
+  const [conteudo,setConteudo]=useState(null), [erro,setErro]=useState(''), [tentativa,setTentativa]=useState(0);
+  useEffect(()=>{
+    let vivo=true;
+    fetch('/biblia/indice.json').then(r=>{if(!r.ok)throw Error();return r.json();}).then(data=>{
+      if(!vivo)return;setIndice(data);
+      const atual=data.find(b=>b.id===livro);
+      if(!atual){setLivro('JHN');setCapitulo(1);}else setCapitulo(c=>Math.max(1,Math.min(c,atual.capitulos)));
+    }).catch(()=>{if(vivo)setErro('Não foi possível carregar os livros. Confira sua conexão e tente novamente.');});
+    return()=>{vivo=false;};
+  },[tentativa]);
+  useEffect(()=>{
+    if(!indice.some(b=>b.id===livro))return;
+    let vivo=true;setErro('');setConteudo(null);
+    if(cacheLivros.has(livro)){setConteudo(cacheLivros.get(livro));return;}
+    fetch('/biblia/'+livro+'.json').then(r=>{if(!r.ok)throw Error();return r.json();}).then(data=>{cacheLivros.set(livro,data);if(vivo)setConteudo(data);}).catch(()=>{if(vivo)setErro('Não foi possível carregar este livro. Confira sua conexão e tente novamente.');});
+    return()=>{vivo=false;};
+  },[livro,indice,tentativa]);
+  useEffect(()=>{try{localStorage.setItem('adbras-leitura',JSON.stringify({livro,capitulo,tamanho,escuro}));}catch{}},[livro,capitulo,tamanho,escuro]);
+  const pos=indice.findIndex(b=>b.id===livro), atual=indice[pos];
+  function navegar(passo){
+    if(!atual)return;
+    if(capitulo+passo<1 && pos>0){setLivro(indice[pos-1].id);setCapitulo(indice[pos-1].capitulos);}
+    else if(capitulo+passo>atual.capitulos && pos<indice.length-1){setLivro(indice[pos+1].id);setCapitulo(1);}
+    else setCapitulo(c=>Math.max(1,Math.min(atual.capitulos,c+passo)));
+    document.getElementById('leitor-biblia')?.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+  const controles=<div className="flex justify-between gap-3"><button disabled={!atual || (pos===0 && capitulo===1)} onClick={()=>navegar(-1)} className="border rounded-xl px-3 py-3 text-sm disabled:opacity-40">← Anterior</button><button disabled={!atual || (pos===indice.length-1 && capitulo===atual.capitulos)} onClick={()=>navegar(1)} className="border rounded-xl px-3 py-3 text-sm disabled:opacity-40">Próximo →</button></div>;
+  return <section id="leitor-biblia" className="rounded-3xl p-5 space-y-5 shadow-sm" style={{background:escuro?'#101c2c':'#fffdf7',color:escuro?'#eef2f7':'#182638'}}>
+    <header><h1 className="text-2xl font-bold">Bíblia Sagrada</h1><p className="text-xs mt-1">Bíblia Livre · Sua leitura, sem anúncios</p></header>
+    <div className="flex gap-3"><label className="text-xs flex-1 min-w-0">Livro<select aria-label="Livro da Bíblia" value={livro} onChange={e=>{setLivro(e.target.value);setCapitulo(1);}} className="block w-full mt-1 p-3 border rounded-xl bg-white text-slate-900">{indice.map(b=><option key={b.id} value={b.id}>{b.nome}</option>)}</select></label><label className="text-xs">Capítulo<select aria-label="Capítulo" value={capitulo} onChange={e=>setCapitulo(Number(e.target.value))} className="block mt-1 p-3 border rounded-xl bg-white text-slate-900">{Array.from({length:atual?.capitulos||1},(_,i)=><option key={i} value={i+1}>{i+1}</option>)}</select></label></div>
+    <div className="flex flex-wrap gap-2"><button aria-label="Diminuir letras" disabled={tamanho<=16} onClick={()=>setTamanho(v=>v-2)} className="border px-3 py-2 rounded-xl">A−</button><button aria-label="Aumentar letras" disabled={tamanho>=28} onClick={()=>setTamanho(v=>v+2)} className="border px-3 py-2 rounded-xl">A+</button><button aria-pressed={escuro} onClick={()=>setEscuro(v=>!v)} className="border px-3 py-2 rounded-xl text-sm">{escuro?'☀ Modo claro':'☾ Modo escuro'}</button></div>
+    {controles}
+    {erro ? <div role="alert"><p>{erro}</p><button onClick={()=>setTentativa(v=>v+1)} className="underline mt-2">Tentar novamente</button></div> : !conteudo ? <p role="status">Carregando leitura…</p> : <article aria-label={(atual?.nome||'')+' '+capitulo}><h2 className="text-xl font-bold mb-4">{atual?.nome} {capitulo}</h2><div style={{fontSize:tamanho,lineHeight:1.85,fontFamily:'Georgia, serif'}}>{conteudo[capitulo-1]?.map(v=><p key={v.numero} className="mb-3"><sup style={{color:escuro?'#edc36e':'#8a6419',fontSize:'0.65em',marginRight:8}}>{v.numero}</sup>{v.texto}</p>)}</div></article>}
+    {controles}<p className="text-xs opacity-70">Livro, capítulo e preferências ficam salvos neste navegador.</p><CreditosBiblia />
+  </section>;
+}
+
 export default function App() {
   // Estado de Navegação Central
   const [paginaAtual, setPaginaAtual] = useState('home');
@@ -889,12 +932,7 @@ export default function App() {
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">
             ← Voltar ao Menu Principal
           </button>
-          <div className="bg-[#0B1E3B] text-white p-6 rounded-3xl text-center space-y-2">
-            <span className="text-4xl">📖</span>
-            <h1 className="text-xl font-bold">Bíblia Sagrada</h1>
-            <p className="text-xs text-slate-200">Leia e medite na Palavra de Deus</p>
-          </div>
-          <a href="https://www.bibliaonline.com.br/" target="_blank" rel="noreferrer" className="block bg-white p-5 rounded-3xl shadow-sm text-center font-bold text-sm text-slate-900">Abrir Bíblia Online →</a>
+          <BibliaInterna />
         </main>
       )}
 
