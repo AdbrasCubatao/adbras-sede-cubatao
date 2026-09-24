@@ -268,6 +268,30 @@ function BibliaInterna() {
   </section>;
 }
 
+function CompartilharApp() {
+  const url='https://adbras-sede-cubatao.vercel.app/';
+  const [mensagem,setMensagem]=useState(''), [manual,setManual]=useState(false);
+  async function copiar(){
+    try{await navigator.clipboard.writeText(url);setMensagem('Link copiado! Cole na conversa de quem você quer convidar.');setManual(false);}
+    catch{setManual(true);setMensagem('Selecione o link abaixo para copiar.');}
+  }
+  async function compartilhar(){
+    if(navigator.share){
+      try{await navigator.share({title:'AD Brás Cubatão',text:'Nossa igreja mais perto de você! Acesse a Bíblia, os departamentos, a agenda e encontre uma de nossas igrejas.',url});setMensagem('');return;}
+      catch(e){if(e.name==='AbortError')return;}
+    }
+    await copiar();
+  }
+  return <section className="mx-5 mt-6 mb-4 p-5 rounded-3xl text-center" style={{background:'#eaf0f6',color:'#061d3b'}}>
+    <h2 className="text-lg font-bold">Compartilhe com alguém</h2>
+    <p className="text-sm mt-2 mb-4">Leve nossa igreja com você e convide alguém para fazer parte!</p>
+    <button onClick={compartilhar} className="w-full rounded-xl p-3 font-bold" style={{background:'#061d3b',color:'white'}}>Compartilhar o app</button>
+    <button onClick={copiar} className="text-sm underline mt-3">Copiar link</button>
+    <p role="status" className="text-xs mt-2">{mensagem}</p>
+    {manual && <input aria-label="Link do app para copiar" readOnly value={url} onFocus={e=>e.target.select()} className="w-full mt-2 p-2 border rounded-lg text-xs" />}
+  </section>;
+}
+
 export default function App() {
   // Estado de Navegação Central
   const [paginaAtual, setPaginaAtual] = useState('home');
@@ -700,6 +724,7 @@ export default function App() {
 
           <VersiculoDoDia />
           <RedesIgreja />
+          <CompartilharApp />
           <nav className="bottom-nav">
             <button onClick={() => setPaginaAtual('biblia')}><span>▤</span>Bíblia</button>
             <button onClick={() => setPaginaAtual('agenda')}><span>▦</span>Agenda</button>
