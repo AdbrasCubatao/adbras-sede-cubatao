@@ -234,7 +234,7 @@ function BibliaInterna() {
   const [conteudo,setConteudo]=useState(null), [erro,setErro]=useState(''), [tentativa,setTentativa]=useState(0);
   useEffect(()=>{
     let vivo=true;
-    fetch('/biblia/indice.json').then(r=>{if(!r.ok)throw Error();return r.json();}).then(data=>{
+    fetch('/indice.json').then(r=>{if(!r.ok)throw Error();return r.json();}).then(data=>{
       if(!vivo)return;setIndice(data);
       const atual=data.find(b=>b.id===livro);
       if(!atual){setLivro('JHN');setCapitulo(1);}else setCapitulo(c=>Math.max(1,Math.min(c,atual.capitulos)));
@@ -245,7 +245,7 @@ function BibliaInterna() {
     if(!indice.some(b=>b.id===livro))return;
     let vivo=true;setErro('');setConteudo(null);
     if(cacheLivros.has(livro)){setConteudo(cacheLivros.get(livro));return;}
-    fetch('/biblia/'+livro+'.json').then(r=>{if(!r.ok)throw Error();return r.json();}).then(data=>{cacheLivros.set(livro,data);if(vivo)setConteudo(data);}).catch(()=>{if(vivo)setErro('Não foi possível carregar este livro. Confira sua conexão e tente novamente.');});
+    fetch('/'+livro+'.json').then(r=>{if(!r.ok)throw Error();return r.json();}).then(data=>{cacheLivros.set(livro,data);if(vivo)setConteudo(data);}).catch(()=>{if(vivo)setErro('Não foi possível carregar este livro. Confira sua conexão e tente novamente.');});
     return()=>{vivo=false;};
   },[livro,indice,tentativa]);
   useEffect(()=>{try{localStorage.setItem('adbras-leitura',JSON.stringify({livro,capitulo,tamanho,escuro}));}catch{}},[livro,capitulo,tamanho,escuro]);
