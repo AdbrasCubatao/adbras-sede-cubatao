@@ -167,6 +167,12 @@ const SEDE_LOCAL = {id:'sede-local', nome:'AD Brás Sede Cubatão', endereco:'Ru
 function LocaisIgrejas({admin=false}) {
   const novo = () => ({nome:'',endereco:'',bairro:'',cidade:'Cubatão',uf:'SP',horarios:'',sede:false,ativo:true});
   const [lista,setLista]=useState([]), [form,setForm]=useState(novo), [id,setId]=useState(null), [busca,setBusca]=useState(''), [carregando,setCarregando]=useState(true), [erro,setErro]=useState(''), [mensagem,setMensagem]=useState(''), [salvando,setSalvando]=useState(false);
+  const [listaAberta,setListaAberta]=useState(false), [igrejaSelecionada,setIgrejaSelecionada]=useState(null), [opcaoAtiva,setOpcaoAtiva]=useState(-1);
+  const buscaId=admin?'busca-igrejas-admin':'busca-igrejas-publica';
+  function selecionarIgreja(igreja){
+    setIgrejaSelecionada(igreja.id);setBusca(igreja.nome);setListaAberta(false);setOpcaoAtiva(-1);
+  }
+  function verTodas(){setBusca('');setIgrejaSelecionada(null);setListaAberta(false);setOpcaoAtiva(-1);}
   async function carregar() {
     setCarregando(true);setErro('');
     try {
@@ -196,7 +202,12 @@ function LocaisIgrejas({admin=false}) {
     try{const {data,error}=await supabase.from('igrejas_locais').delete().eq('id',item.id).select('id');if(error)throw error;if(!data?.length)throw new Error('Nada foi excluído. Confira sua permissão.');if(id===item.id)limpar();await carregar();setMensagem('Cadastro excluído.');}catch(e){setMensagem(e.message);}finally{setSalvando(false);}
   }
   const normalizar=s=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
-  const encontrados=lista.filter(v=>normalizar([v.nome,v.endereco,v.bairro,v.cidade].filter(Boolean).join(' ')).includes(normalizar(busca)));
+  const sugestoes=lista.filter(v=>normalizar([v.nome,v.endereco,v.bairro,v.cidade].filter(Boolean).join(' ')).includes(normalizar(igrejaSelecionada?'':busca.trim())));
+  const encontrados=igrejaSelecionada?lista.filter(v=>v.id===igrejaSelecionada):sugestoes;
+  useEffect(()=>{setOpcaoAtiva(-1);},[lista]);
+  useEffect(()=>{
+    if(listaAberta && opcaoAtiva>=0)document.getElementById(buscaId+'-opcao-'+opcaoAtiva)?.scrollIntoView({block:'nearest'});
+  },[listaAberta,opcaoAtiva,buscaId]);
   const enderecoCompleto=v=>[v.endereco,v.bairro,v.cidade,v.uf].filter(Boolean).join(', ');
   return <section className="space-y-4">
     {admin ? <div className="bg-white p-5 rounded-3xl shadow-sm space-y-3">
@@ -211,7 +222,38 @@ function LocaisIgrejas({admin=false}) {
         </fieldset>
       </form><p role="status" className="text-xs">{mensagem}</p>
     </div> : <div className="bg-[#0B1E3B] text-white p-6 rounded-3xl space-y-3"><span className="text-3xl" aria-hidden="true">📍</span><h1 className="text-2xl font-bold">Uma igreja perto de você</h1><p className="text-sm leading-relaxed">Há um lugar para você e sua família aqui. Conheça nossas igrejas e encontre uma congregação para adorar a Deus e caminhar conosco. Será uma alegria receber você!</p></div>}
-    <label className="block text-sm">Buscar por igreja, bairro ou cidade<input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Digite o nome ou o bairro" className="mt-2 block w-full border rounded-xl p-3 bg-white text-sm" /></label>
+    <div className="relative" onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget)){setListaAberta(false);setOpcaoAtiva(-1);}}}>
+      <label htmlFor={buscaId} className="block text-sm">Buscar por igreja, bairro ou cidade</label>
+      <div className="relative mt-2">
+        <input id={buscaId} role="combobox" aria-autocomplete="list" aria-expanded={listaAberta} aria-controls={buscaId+'-lista'} aria-activedescendant={listaAberta && opcaoAtiva>=0?buscaId+'-opcao-'+opcaoAtiva:undefined}
+          autoComplete="off" value={busca} placeholder="Selecione uma igreja ou digite para buscar"
+          onFocus={()=>{setListaAberta(true);setOpcaoAtiva(-1);}}
+          onClick={()=>setListaAberta(true)}
+          onChange={e=>{setBusca(e.target.value);setIgrejaSelecionada(null);setListaAberta(true);setOpcaoAtiva(-1);}}
+          onKeyDown={e=>{
+            if(e.key==='ArrowDown' || e.key==='ArrowUp'){
+              e.preventDefault();setListaAberta(true);
+              setOpcaoAtiva(atual=>!sugestoes.length?-1:!listaAberta?(e.key==='ArrowDown'?0:sugestoes.length-1):e.key==='ArrowDown'?Math.min(atual+1,sugestoes.length-1):atual<0?sugestoes.length-1:Math.max(0,atual-1));
+            }else if(e.key==='Enter' && listaAberta && opcaoAtiva>=0 && sugestoes[opcaoAtiva]){
+              e.preventDefault();selecionarIgreja(sugestoes[opcaoAtiva]);
+            }else if(e.key==='Escape'){setListaAberta(false);setOpcaoAtiva(-1);}
+          }} className="block w-full border rounded-xl p-3 pr-10 bg-white text-sm" />
+        <span aria-hidden="true" className="absolute right-4 top-3 pointer-events-none text-slate-500">▾</span>
+      </div>
+      {listaAberta && <div className="absolute left-0 right-0 z-30 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden">
+        <ul id={buscaId+'-lista'} role="listbox" aria-label="Igrejas cadastradas" className="max-h-64 overflow-y-auto m-0 p-1 list-none">
+          {sugestoes.map((v,i)=><li key={v.id} id={buscaId+'-opcao-'+i} role="option" aria-selected={opcaoAtiva===i}
+            onMouseDown={e=>e.preventDefault()} onClick={()=>selecionarIgreja(v)}
+            className={'cursor-pointer rounded-lg p-3 text-sm '+(opcaoAtiva===i?'bg-blue-50 text-[#0B1E3B]':'hover:bg-slate-50')}>
+            <span className="block font-bold">{v.nome}{v.sede?' · Sede':''}</span>
+            <span className="block text-xs text-slate-500 mt-1">{[v.bairro,v.cidade,v.uf].filter(Boolean).join(' · ')}</span>
+          </li>)}
+        </ul>
+        {!sugestoes.length && <p role="status" className="p-3 text-sm text-slate-500">{carregando?'Carregando igrejas…':'Nenhuma igreja encontrada.'}</p>}
+        <button type="button" onClick={verTodas} className="w-full border-t p-3 text-sm font-bold text-[#0B1E3B] text-left">Ver todas as igrejas</button>
+      </div>}
+      {(busca || igrejaSelecionada) && <button type="button" onClick={verTodas} className="mt-2 text-sm underline text-[#0B1E3B]">Ver todas as igrejas</button>}
+    </div>
     {carregando && <p role="status" className="text-sm">Carregando endereços…</p>}
     {erro && <div role="alert" className="text-sm bg-amber-50 p-3 rounded-xl">{erro}<button onClick={carregar} className="block underline mt-2">Tentar novamente</button></div>}
     {!carregando && !erro && !encontrados.length && <p className="bg-white p-4 rounded-xl text-sm">{busca?'Nenhuma igreja encontrada. Tente outro bairro ou nome.':admin?'Cadastre a primeira igreja acima.':'Em breve, os endereços das nossas igrejas estarão disponíveis aqui.'}</p>}
