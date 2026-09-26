@@ -389,6 +389,69 @@ function Apostilas({admin=false}){
   </section>;
 }
 
+function AgendaCampo({gestao=false,departamentos=[]}){
+  const novo=()=>({titulo:'',data:diaBrasilia(),horario:'',local:'',descricao:'',cancelado:false});
+  const [itens,setItens]=useState([]),[origem,setOrigem]=useState('todos'),[mes,setMes]=useState(''),[passados,setPassados]=useState(false),[erro,setErro]=useState(''),[carregando,setCarregando]=useState(true),[form,setForm]=useState(novo),[id,setId]=useState(null),[ocupado,setOcupado]=useState(false),[mensagem,setMensagem]=useState('');
+  const ref=React.useRef(null);
+  async function carregar(){
+    setCarregando(true);setErro('');
+    try{
+      const [campo,depts]=await Promise.all([supabase.from('agenda_campo').select('*').order('data'),supabase.from('departamento_eventos').select('*').eq('ativo',true).order('data')]);
+      if(campo.error || depts.error)throw new Error('Não foi possível carregar toda a agenda.');
+      setItens([...(campo.data||[]).map(v=>({...v,origem:'campo',chave:'campo-'+v.id})),...(depts.data||[]).map(v=>({...v,origem:v.departamento_id,chave:'dept-'+v.id,cancelado:false}))].sort((a,b)=>(a.data+' '+(a.horario||'')).localeCompare(b.data+' '+(b.horario||''))));
+    }catch(e){setErro(e.message);}finally{setCarregando(false);}
+  }
+  useEffect(()=>{carregar();},[]);
+  function limpar(){setId(null);setForm(novo());}
+  async function salvar(e){
+    e.preventDefault();setOcupado(true);setMensagem('');
+    try{
+      const dados={...form,titulo:form.titulo.trim(),local:form.local.trim(),descricao:form.descricao.trim(),horario:form.horario||null};
+      if(!dados.titulo || !dados.data)throw new Error('Preencha título e data.');
+      const {data,error}=id?await supabase.from('agenda_campo').update(dados).eq('id',id).select('id'):await supabase.from('agenda_campo').insert(dados).select('id');
+      if(error)throw error;if(!data?.length)throw new Error('Sem permissão para salvar.');
+      limpar();await carregar();setMensagem('Evento salvo na Agenda Geral.');
+    }catch(e){setMensagem(e.message);}finally{setOcupado(false);}
+  }
+  const nomeOrigem=o=>o==='campo'?'Campo':departamentos.find(d=>d.id===o)?.nome||o;
+  const visiveis=itens.filter(v=>(origem==='todos'||v.origem===origem)&&(!mes||v.data?.startsWith(mes))&&(passados||v.data>=diaBrasilia()));
+  return <section className="space-y-4">
+    <div className="bg-[#061d3b] text-white rounded-3xl p-6 space-y-2"><span className="text-3xl">📅</span><h1 className="text-2xl font-bold">Agenda Geral do Campo</h1><p className="text-sm">Caminhe com a gente! Confira a programação do campo e dos nossos departamentos.</p></div>
+    {gestao && <div ref={ref} className="bg-white p-5 rounded-3xl space-y-3"><h2 className="font-bold">{id?'Editar evento do campo':'Cadastrar evento do campo'}</h2><p className="text-xs text-slate-500">Os eventos dos departamentos aparecem automaticamente e são alterados no cadastro de origem. Para cancelar um evento do campo, use Editar e marque Cancelado.</p>
+      <form onSubmit={salvar}><fieldset disabled={ocupado} className="space-y-3">
+        <label className="block text-xs">Título<input required maxLength={160} value={form.titulo} onChange={e=>setForm({...form,titulo:e.target.value})} className="block w-full border p-3 rounded-xl" /></label>
+        <div className="grid grid-cols-2 gap-3"><label className="text-xs">Data<input required type="date" value={form.data} onChange={e=>setForm({...form,data:e.target.value})} className="block w-full border p-3 rounded-xl" /></label><label className="text-xs">Horário<input type="time" value={form.horario} onChange={e=>setForm({...form,horario:e.target.value})} className="block w-full border p-3 rounded-xl" /></label></div>
+        <label className="block text-xs">Local<input maxLength={300} value={form.local} onChange={e=>setForm({...form,local:e.target.value})} className="block w-full border p-3 rounded-xl" /></label>
+        <label className="block text-xs">Descrição<textarea maxLength={2000} value={form.descricao} onChange={e=>setForm({...form,descricao:e.target.value})} className="block w-full border p-3 rounded-xl" /></label>
+        <label className="block text-sm"><input type="checkbox" checked={form.cancelado} onChange={e=>setForm({...form,cancelado:e.target.checked})} /> Evento cancelado (continua visível com aviso)</label>
+        <button className="bg-[#061d3b] text-white p-3 rounded-xl text-sm">{ocupado?'Salvando…':id?'Salvar alterações':'Publicar evento'}</button>{id && <button type="button" onClick={limpar} className="ml-3 underline text-sm">Cancelar edição</button>}
+      </fieldset></form><p role="status" className="text-sm">{mensagem}</p>
+    </div>}
+    <div className="bg-white rounded-2xl p-4 space-y-3"><label className="block text-sm">Programação<select value={origem} onChange={e=>setOrigem(e.target.value)} className="block w-full border p-3 rounded-xl"><option value="todos">Todos</option><option value="campo">Campo</option>{departamentos.map(d=><option key={d.id} value={d.id}>{d.nome}</option>)}</select></label>
+      <label className="block text-sm">Filtrar por mês<input type="month" value={mes} onChange={e=>setMes(e.target.value)} className="block w-full border p-3 rounded-xl" /></label>
+      <label className="block text-sm"><input type="checkbox" checked={passados} onChange={e=>setPassados(e.target.checked)} /> Incluir eventos anteriores</label>
+      <div className="flex gap-4 text-sm"><button onClick={()=>{setOrigem('todos');setMes('');setPassados(false);}} className="underline">Limpar filtros</button><button onClick={carregar} disabled={carregando} className="underline">Atualizar agenda</button></div>
+    </div>
+    {carregando?<p role="status">Carregando agenda…</p>:erro?<p role="alert" className="bg-amber-50 p-4 rounded-xl">{erro} Use “Atualizar agenda” para tentar novamente.</p>:!visiveis.length?<p className="bg-white p-5 rounded-2xl text-sm">Nenhum evento para estes filtros.</p>:visiveis.map(v=><article key={v.chave} className="bg-white p-5 rounded-3xl border border-slate-100 space-y-2">
+      <span className="text-xs font-bold text-amber-700">{nomeOrigem(v.origem)}</span>{v.cancelado && <p className="text-red-700 font-bold">EVENTO CANCELADO</p>}
+      <h2 className="text-lg font-bold">{v.titulo}</h2><p className="text-sm">📅 {v.data?.split('-').reverse().join('/')} · {v.horario?v.horario.slice(0,5):'Horário a confirmar'}</p><p className="text-sm">📍 {v.local||'Local a confirmar'}</p>{v.descricao && <p className="text-sm whitespace-pre-line text-slate-600">{v.descricao}</p>}
+      {gestao && v.origem==='campo' && <button className="underline text-sm" onClick={()=>{setId(v.id);setForm({titulo:v.titulo,data:v.data,horario:v.horario?.slice(0,5)||'',local:v.local||'',descricao:v.descricao||'',cancelado:v.cancelado});ref.current?.scrollIntoView({behavior:'smooth'});}}>Editar evento</button>}
+    </article>)}
+  </section>;
+}
+function AcessoSecretaria(){
+  const [email,setEmail]=useState(''),[lista,setLista]=useState([]),[mensagem,setMensagem]=useState(''),[ocupado,setOcupado]=useState(false);
+  async function carregar(){const {data,error}=await supabase.from('secretaria_users').select('user_id,email');if(error)setMensagem('Execute o SQL da agenda para configurar os acessos.');else setLista(data||[]);}
+  useEffect(()=>{carregar();},[]);
+  async function alterar(alvo,permitir){
+    if(!permitir && !window.confirm('Remover o acesso da secretaria de '+alvo+'?'))return;
+    setOcupado(true);setMensagem('');
+    const {error}=await supabase.rpc('gerenciar_secretaria',{email_alvo:alvo.trim(),permitir});
+    if(error)setMensagem(error.message);else{setEmail('');await carregar();setMensagem(permitir?'Acesso liberado.':'Acesso removido.');}setOcupado(false);
+  }
+  return <section className="bg-white rounded-3xl p-5 space-y-3"><h3 className="font-bold">Acesso da secretaria</h3><p className="text-xs text-slate-500">Primeiro crie a conta em Supabase → Authentication → Users. Depois informe o e-mail aqui. Essa permissão libera apenas a gestão dos eventos do campo.</p><form onSubmit={e=>{e.preventDefault();alterar(email,true);}} className="space-y-3"><input aria-label="E-mail da secretaria" required type="email" value={email} onChange={e=>setEmail(e.target.value)} className="border p-3 rounded-xl w-full" placeholder="E-mail da secretaria"/><button disabled={ocupado} className="bg-[#061d3b] text-white p-3 rounded-xl">Liberar acesso</button></form><p role="status" className="text-sm">{mensagem}</p>{lista.map(v=><div key={v.user_id} className="text-sm flex justify-between gap-2"><span className="break-all">{v.email}</span><button disabled={ocupado} className="text-red-700 underline" onClick={()=>alterar(v.email,false)}>Remover</button></div>)}</section>;
+}
+
 const cacheLivros = new Map();
 function BibliaInterna() {
   const lerPreferencias = () => {try {return JSON.parse(localStorage.getItem('adbras-leitura') || '{}');}catch{return {};}};
@@ -471,6 +534,8 @@ export default function App() {
 
   // Estados do Admin
   const [adminLogado, setAdminLogado] = useState(false);
+  const [secretariaLogada,setSecretariaLogada]=useState(false);
+  const [acessoCarregando,setAcessoCarregando]=useState(true);
   const [emailAdmin, setEmailAdmin] = useState('');
   const [senhaAdmin, setSenhaAdmin] = useState('');
   const [departamentoAdmin, setDepartamentoAdmin] = useState('ujademc');
@@ -578,9 +643,22 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setAdminLogado(Boolean(data.session)));
-    const { data: listener } = supabase.auth.onAuthStateChange((_evento, sessao) => setAdminLogado(Boolean(sessao)));
-    return () => listener.subscription.unsubscribe();
+    let ativo=true,versao=0;
+    async function verificar(sessao){
+      const atual=++versao;
+      if(ativo){setAcessoCarregando(true);setAdminLogado(false);setSecretariaLogada(false);}
+      if(!sessao){if(ativo)setAcessoCarregando(false);return;}
+      try{
+        const [adm,sec]=await Promise.all([
+          supabase.from('admin_users').select('user_id').eq('user_id',sessao.user.id).maybeSingle(),
+          supabase.from('secretaria_users').select('user_id').eq('user_id',sessao.user.id).maybeSingle()
+        ]);
+        if(ativo && atual===versao){setAdminLogado(!adm.error && !!adm.data);setSecretariaLogada(!sec.error && !!sec.data);}
+      }finally{if(ativo && atual===versao)setAcessoCarregando(false);}
+    }
+    supabase.auth.getSession().then(({data})=>{if(ativo)verificar(data.session);});
+    const {data:listener}=supabase.auth.onAuthStateChange((_evento,sessao)=>{setTimeout(()=>{if(ativo)verificar(sessao);},0);});
+    return ()=>{ativo=false;listener.subscription.unsubscribe();};
   }, []);
 
   // 4. OUTROS ESTADOS DA APLICAÇÃO
@@ -588,12 +666,6 @@ export default function App() {
   const [tituloAv, setTituloAv] = useState('');
   const [categoriaAv, setCategoriaAv] = useState('Geral');
   const [conteudoAv, setConteudoAv] = useState('');
-
-  const [eventos, setEventos] = useState([]);
-  const [nomeEv, setNomeEv] = useState('');
-  const [dataEv, setDataEv] = useState('');
-  const [horarioEv, setHorarioEv] = useState('');
-  const [localEv, setLocalEv] = useState('');
 
   const [pedidos, setPedidos] = useState([]);
   const [novoNome, setNovoNome] = useState('');
@@ -617,18 +689,18 @@ export default function App() {
     const { data, error } = await supabase.auth.signInWithPassword({ email: emailAdmin, password: senhaAdmin });
     if (error) return alert('E-mail ou senha incorretos.');
 
-    const { data: administrador } = await supabase.from('admin_users').select('user_id').eq('user_id', data.user.id).maybeSingle();
-    if (!administrador) {
-      await supabase.auth.signOut();
-      return alert('Este usuário não possui permissão de administrador.');
-    }
-    setAdminLogado(true);
+    const [adm,sec]=await Promise.all([
+      supabase.from('admin_users').select('user_id').eq('user_id',data.user.id).maybeSingle(),
+      supabase.from('secretaria_users').select('user_id').eq('user_id',data.user.id).maybeSingle()
+    ]);
+    if(!adm.data && !sec.data){await supabase.auth.signOut();return alert('Esta conta ainda não possui acesso ao painel. Peça ao administrador para liberar a permissão.');}
+    setAdminLogado(!!adm.data && !adm.error);setSecretariaLogada(!!sec.data && !sec.error);
     setSenhaAdmin('');
   };
 
   const handleLogoutAdmin = async () => {
     await supabase.auth.signOut();
-    setAdminLogado(false);
+    setAdminLogado(false);setSecretariaLogada(false);
   };
 
   const cancelarEdicaoLider = () => {
@@ -877,12 +949,12 @@ export default function App() {
             ← Voltar ao Menu Principal
           </button>
 
-          {!adminLogado ? (
+          {acessoCarregando ? <p role="status">Verificando acesso…</p> : !adminLogado && !secretariaLogada ? (
             <div className="bg-white p-6 rounded-3xl shadow-sm space-y-4 text-center">
               <span className="text-4xl">🔐</span>
-              <h2 className="text-lg font-bold text-slate-900">Painel do Administrador</h2>
+              <h2 className="text-lg font-bold text-slate-900">Acesso administrativo / Secretaria</h2>
               <form onSubmit={handleLoginAdmin} className="space-y-3 pt-2">
-                <input type="email" placeholder="E-mail do administrador" value={emailAdmin} onChange={(e) => setEmailAdmin(e.target.value)} className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl text-center font-bold" required />
+                <input type="email" placeholder="E-mail de acesso" value={emailAdmin} onChange={(e) => setEmailAdmin(e.target.value)} className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl text-center font-bold" required />
                 <input type="password" placeholder="Digite a senha de acesso" value={senhaAdmin} onChange={(e) => setSenhaAdmin(e.target.value)} className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl text-center font-bold" />
                 <button type="submit" className="w-full bg-[#0B1E3B] text-white py-3 rounded-xl font-bold text-xs shadow-md">Entrar no Painel</button>
               </form>
@@ -891,12 +963,15 @@ export default function App() {
             <div className="space-y-5">
               <div className="bg-white p-5 rounded-3xl shadow-sm flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-bold text-slate-900">Painel de Controle</h2>
+                  <h2 className="text-lg font-bold text-slate-900">{adminLogado?'Painel de Controle':'Painel da Secretaria'}</h2>
                   <span className="text-[10px] text-emerald-600 font-bold">● SUPABASE CONECTADO</span>
                 </div>
                 <button onClick={handleLogoutAdmin} className="text-xs text-red-600 font-bold bg-red-50 px-2.5 py-1 rounded-lg">Sair</button>
               </div>
 
+              <AgendaCampo gestao departamentos={departamentos} />
+              {adminLogado && <>
+              <AcessoSecretaria />
               <MateriaisEstudo admin />
               <LocaisIgrejas admin />
               <RedesIgreja admin />
@@ -975,6 +1050,7 @@ export default function App() {
               </section>
 
               <Apostilas admin />
+              </>}
             </div>
           )}
         </main>
@@ -994,16 +1070,8 @@ export default function App() {
       {paginaAtual === 'agenda' && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">← Voltar ao Menu Principal</button>
-          <div><h1 className="text-2xl font-bold text-slate-900">Agenda Oficial</h1><div className="w-12 h-1 bg-amber-400 rounded-full mt-1.5"></div></div>
-          {eventos.length === 0 ? (
-            <div className="bg-white p-6 rounded-3xl text-center text-xs text-slate-500">Nenhum evento publicado no momento.</div>
-          ) : eventos.map((ev) => (
-            <div key={ev.id} className="bg-white p-4 rounded-2xl shadow-sm space-y-2">
-              <h2 className="font-bold text-sm">{ev.nome}</h2>
-              <p className="text-xs text-slate-600">📅 {ev.data} às {ev.horario}</p>
-              <p className="text-xs text-slate-600">📍 {ev.local}</p>
-            </div>
-          ))}
+          <AgendaCampo departamentos={departamentos} />
+          <button onClick={()=>setPaginaAtual('admin')} className="text-sm underline">Acesso da secretaria</button>
         </main>
       )}
 
