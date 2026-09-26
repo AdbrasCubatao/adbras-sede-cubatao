@@ -322,8 +322,70 @@ function MateriaisEstudo({admin=false}){
     <p className="text-xs font-bold uppercase tracking-wider text-amber-400">Aulas e apostilas</p>
     <h2 className="text-xl font-bold leading-snug">{curso.titulo}</h2>
     <p className="text-sm leading-relaxed whitespace-pre-line">{curso.descricao}</p>
-    <a href={curso.url} target="_blank" rel="noopener noreferrer" className="block bg-amber-400 text-slate-900 p-3 rounded-xl text-sm font-bold text-center">Acessar materiais ↗</a>
+    <a href={curso.url} target="_blank" rel="noopener noreferrer" className="block bg-amber-400 text-slate-900 p-3 rounded-xl text-sm font-bold text-center">Ver todos os materiais ↗</a>
     <p className="text-xs text-slate-300">Abre o site de materiais em uma nova aba.</p>
+  </section>;
+}
+
+function Apostilas({admin=false}){
+  const novo=()=>({titulo:'',descricao:'',url:'',ordem:0,ativo:true});
+  const [itens,setItens]=useState([]),[form,setForm]=useState(novo),[id,setId]=useState(null),[carregando,setCarregando]=useState(true),[salvando,setSalvando]=useState(false),[erro,setErro]=useState(''),[mensagem,setMensagem]=useState('');
+  const formRef=React.useRef(null);
+  async function carregar(){
+    setCarregando(true);setErro('');
+    try{
+      let q=supabase.from('estudos_apostilas').select('*').order('ordem').order('created_at');
+      if(!admin)q=q.eq('ativo',true);
+      const {data,error}=await q;if(error)throw error;setItens(data||[]);
+    }catch(e){setErro('Não foi possível carregar as apostilas. Tente novamente.');}
+    finally{setCarregando(false);}
+  }
+  useEffect(()=>{carregar();},[admin]);
+  function limpar(){setForm(novo());setId(null);}
+  async function salvar(e){
+    e.preventDefault();setSalvando(true);setMensagem('');
+    try{
+      const dados={...form,titulo:form.titulo.trim(),descricao:form.descricao.trim(),url:form.url.trim(),ordem:Number(form.ordem)};
+      if(!dados.titulo || !linkCursoValido(dados.url))throw new Error('Preencha o título e um link iniciado por https://.');
+      if(!Number.isInteger(dados.ordem)||dados.ordem<0||dados.ordem>9999)throw new Error('A ordem deve ser um número inteiro de 0 a 9999.');
+      const {data,error}=id?await supabase.from('estudos_apostilas').update(dados).eq('id',id).select('id'):await supabase.from('estudos_apostilas').insert(dados).select('id');
+      if(error)throw error;if(!data?.length)throw new Error('Nada foi salvo. Confira sua permissão de administrador.');
+      limpar();await carregar();setMensagem('Apostila salva! Abra novamente Estudos / EBD para ver a atualização.');
+    }catch(e){setMensagem(e.message);}finally{setSalvando(false);}
+  }
+  async function excluir(item){
+    if(!window.confirm('Excluir o card “'+item.titulo+'”? O arquivo no Drive não será apagado.'))return;
+    setSalvando(true);setMensagem('');
+    try{
+      const {data,error}=await supabase.from('estudos_apostilas').delete().eq('id',item.id).select('id');
+      if(error)throw error;if(!data?.length)throw new Error('Nada foi excluído. Confira sua permissão.');
+      if(id===item.id)limpar();await carregar();setMensagem('Card excluído. O arquivo original foi mantido.');
+    }catch(e){setMensagem(e.message);}finally{setSalvando(false);}
+  }
+  return <section className="space-y-4">
+    {admin && <div ref={formRef} className="bg-white p-5 rounded-3xl border space-y-3">
+      <h3 className="font-bold">Apostilas — Estudos / EBD</h3>
+      <p className="text-xs text-slate-500">Cada card abre um material. Cole o link direto do arquivo e libere o acesso de leitura no Drive. A ordem menor aparece primeiro.</p>
+      <form onSubmit={salvar}><fieldset disabled={salvando || carregando || !!erro} className="space-y-3">
+        <label className="block text-xs">Título<input required maxLength={160} value={form.titulo} onChange={e=>setForm({...form,titulo:e.target.value})} className="block w-full border p-3 rounded-xl" /></label>
+        <label className="block text-xs">Descrição<textarea maxLength={1000} rows={3} value={form.descricao} onChange={e=>setForm({...form,descricao:e.target.value})} className="block w-full border p-3 rounded-xl" /></label>
+        <label className="block text-xs">Link direto da apostila<input required type="url" value={form.url} onChange={e=>setForm({...form,url:e.target.value})} className="block w-full border p-3 rounded-xl" /></label>
+        <label className="block text-xs">Ordem de exibição<input required type="number" min={0} max={9999} step={1} value={form.ordem} onChange={e=>setForm({...form,ordem:e.target.value})} className="block w-full border p-3 rounded-xl" /></label>
+        <label className="block text-sm"><input type="checkbox" checked={form.ativo} onChange={e=>setForm({...form,ativo:e.target.checked})} /> Mostrar no app</label>
+        <button className="bg-[#0B1E3B] text-white rounded-xl p-3 text-sm font-bold">{salvando?'Salvando…':id?'Salvar alterações':'Cadastrar apostila'}</button>
+        {id && <button type="button" onClick={limpar} className="ml-3 underline text-sm">Cancelar edição</button>}
+      </fieldset></form><p role="status" className="text-sm">{mensagem}</p>
+    </div>}
+    {carregando && <p role="status" className="text-sm">Carregando apostilas…</p>}
+    {erro && <div role="alert" className="bg-amber-50 p-4 rounded-xl text-sm">{erro}<button type="button" onClick={carregar} className="block underline mt-2">Tentar novamente</button></div>}
+    {!carregando && !erro && !itens.length && <p className="text-sm text-slate-500">{admin?'Cadastre sua primeira apostila acima.':'Em breve, novos materiais de estudo estarão disponíveis aqui.'}</p>}
+    {!carregando && !erro && itens.map(item=><article key={item.id} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-3">
+      <span aria-hidden="true" className="text-3xl">📖</span>
+      <h2 className="font-bold text-lg text-[#0B1E3B]">{item.titulo}</h2>
+      {item.descricao && <p className="text-sm text-slate-600 whitespace-pre-line">{item.descricao}</p>}
+      {linkCursoValido(item.url) && <a href={item.url} target="_blank" rel="noopener noreferrer" className="block bg-[#0B1E3B] text-white text-center p-3 rounded-xl text-sm font-bold">Abrir material ↗</a>}
+      {admin && <div className="flex flex-wrap gap-3 items-center text-xs"><span>{item.ativo?'Visível':'Oculta'} · Ordem {item.ordem}</span><button disabled={salvando} className="underline" onClick={()=>{setId(item.id);setForm({titulo:item.titulo,descricao:item.descricao,url:item.url,ordem:item.ordem,ativo:item.ativo});setMensagem('Editando '+item.titulo);formRef.current?.scrollIntoView({behavior:'smooth',block:'start'});}}>Editar</button><button disabled={salvando} onClick={()=>excluir(item)} className="text-red-700 underline">Excluir</button></div>}
+    </article>)}
   </section>;
 }
 
@@ -521,50 +583,6 @@ export default function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  // 3. ESTADO DOS ESTUDOS / EBD COM SUPABASE
-  const [estudos, setEstudos] = useState([
-    {
-      id: 1,
-      titulo: 'Lição EBD: O Fruto do Espírito na Vida Cristã',
-      subtitulo: 'Escola Bíblica Dominical',
-      link: 'https://www.bibliaonline.com.br/',
-      foto: 'https://images.unsplash.com/photo-1504052434569-70ad5836ab65?auto=format&fit=crop&q=80&w=600',
-      relato: 'Um estudo aprofundado sobre Gálatas 5, abordando o desenvolvimento do caráter cristão no dia a dia do crente.',
-      data: '17/09/2026',
-      downloadsCount: 0,
-    },
-  ]);
-
-  // Função para incrementar contador de acessos/downloads no Supabase
-  const registrarDownload = async (estudoId) => {
-    setEstudos(prevEstudos =>
-      prevEstudos.map(est => {
-        if (est.id === estudoId) {
-          const novoCount = (est.downloadsCount || 0) + 1;
-          
-          // Sincronização em segundo plano com o Supabase
-          supabase
-            .from('estudos')
-            .update({ downloadsCount: novoCount })
-            .eq('id', estudoId)
-            .then(({ error }) => {
-              if (error) console.log('Aviso Supabase (Criar tabela "estudos" se ainda não existir):', error.message);
-            });
-
-          return { ...est, downloadsCount: novoCount };
-        }
-        return est;
-      })
-    );
-  };
-
-  // Form de criação de Estudo (Admin)
-  const [tituloEst, setTituloEst] = useState('');
-  const [subtituloEst, setSubtituloEst] = useState('Escola Bíblica Dominical');
-  const [linkEst, setLinkEst] = useState('');
-  const [fotoEst, setFotoEst] = useState('');
-  const [relatoEst, setRelatoEst] = useState('');
-
   // 4. OUTROS ESTADOS DA APLICAÇÃO
   const [avisos, setAvisos] = useState([]);
   const [tituloAv, setTituloAv] = useState('');
@@ -732,34 +750,6 @@ export default function App() {
     alert('Conteúdo publicado com sucesso!');
   };
 
-  const handleAdicionarEstudo = (e) => {
-    e.preventDefault();
-    if (!tituloEst || !linkEst || !relatoEst) return;
-
-    const novoEstudoObj = {
-      id: Date.now(),
-      titulo: tituloEst,
-      subtitulo: subtituloEst || 'Estudo Bíblico',
-      link: linkEst,
-      foto: fotoEst || 'https://via.placeholder.com/600x300?text=Banner+Estudo+EBD',
-      relato: relatoEst,
-      data: new Date().toLocaleDateString('pt-BR'),
-      downloadsCount: 0,
-    };
-
-    setEstudos([novoEstudoObj, ...estudos]);
-    setTituloEst('');
-    setSubtituloEst('Escola Bíblica Dominical');
-    setLinkEst('');
-    setFotoEst('');
-    setRelatoEst('');
-    alert('Estudo / EBD publicado com sucesso!');
-  };
-
-  const handleRemoverEstudo = (id) => {
-    setEstudos(estudos.filter((e) => e.id !== id));
-  };
-
   const handleAdicionarPedido = (e) => {
     e.preventDefault();
     if (!novoPedido.trim()) return;
@@ -849,42 +839,8 @@ export default function App() {
             <div className="w-12 h-1 bg-amber-400 rounded-full mt-1.5"></div>
           </div>
 
+          <Apostilas />
           <MateriaisEstudo />
-
-          <div className="space-y-4">
-            {estudos.map((item) => (
-              <div key={item.id} className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden space-y-3">
-                <div className="h-40 bg-slate-100 overflow-hidden relative">
-                  <img src={item.foto} alt={item.titulo} className="w-full h-full object-cover" />
-                  <span className="absolute top-3 left-3 bg-[#0B1E3B] text-white text-[9px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
-                    {item.subtitulo}
-                  </span>
-                </div>
-
-                <div className="p-4 pt-1 space-y-2">
-                  <div className="flex items-center justify-between text-[10px] text-slate-400 font-medium">
-                    <span>Publicado em {item.data}</span>
-                    <span className="bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                      📥 {item.downloadsCount || 0} acessos
-                    </span>
-                  </div>
-
-                  <h2 className="text-base font-bold text-slate-900 leading-snug">{item.titulo}</h2>
-                  <p className="text-xs text-slate-600 leading-relaxed">{item.relato}</p>
-
-                  <a 
-                    href={item.link} 
-                    target="_blank" 
-                    rel="noreferrer"
-                    onClick={() => registrarDownload(item.id)}
-                    className="w-full bg-[#0B1E3B] text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 mt-2 shadow-sm active:scale-95 transition-all hover:bg-slate-800"
-                  >
-                    📖 Ler / Baixar Estudo Completo
-                  </a>
-                </div>
-              </div>
-            ))}
-          </div>
         </main>
       )}
 
@@ -1018,39 +974,7 @@ export default function App() {
                 </form>
               </section>
 
-              {/* PAINEL: PUBLICAR ESTUDO */}
-              <section className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-3">
-                <div className="border-b pb-2 border-slate-100">
-                  <span className="text-[9px] font-black text-amber-600 uppercase">Estudos Bíblicos & EBD</span>
-                  <h3 className="text-sm font-bold text-slate-900">Publicar Novo Estudo</h3>
-                </div>
-
-                <form onSubmit={handleAdicionarEstudo} className="space-y-2.5">
-                  <input type="text" placeholder="Título do Estudo" value={tituloEst} onChange={(e) => setTituloEst(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
-                  <input type="text" placeholder="Subtítulo ou Categoria" value={subtituloEst} onChange={(e) => setSubtituloEst(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" />
-                  <input type="url" placeholder="Link para direcionar ao Estudo completo" value={linkEst} onChange={(e) => setLinkEst(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
-                  <input type="url" placeholder="URL da Foto ou Banner" value={fotoEst} onChange={(e) => setFotoEst(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" />
-                  <textarea rows="3" placeholder="Breve relato ou resumo..." value={relatoEst} onChange={(e) => setRelatoEst(e.target.value)} className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" required></textarea>
-
-                  <button type="submit" className="w-full bg-[#0B1E3B] text-white py-2.5 rounded-xl font-bold text-xs shadow-sm active:scale-95 transition-all">+ Publicar Estudo / EBD</button>
-                </form>
-
-                {/* Exclusão e Métrica de Downloads */}
-                <div className="pt-2 border-t border-slate-100 space-y-2">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Estudos Publicados ({estudos.length})</span>
-                  {estudos.map((e) => (
-                    <div key={e.id} className="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs">
-                      <div className="truncate pr-2">
-                        <p className="font-bold text-slate-900 truncate">{e.titulo}</p>
-                        <span className="text-[10px] text-emerald-700 font-bold">📥 {e.downloadsCount || 0} acessos</span>
-                      </div>
-                      <button onClick={() => handleRemoverEstudo(e.id)} className="text-red-600 font-bold text-[10px] bg-red-50 px-2 py-1 rounded-lg flex-shrink-0">
-                        Excluir
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </section>
+              <Apostilas admin />
             </div>
           )}
         </main>
