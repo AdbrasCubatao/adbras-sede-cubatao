@@ -267,6 +267,66 @@ function LocaisIgrejas({admin=false}) {
   </section>;
 }
 
+const CURSO_PADRAO = {
+  titulo:'Curso Introdutório de Teologia Sistemática',
+  descricao:'Acesse as aulas e os materiais de estudo. Cresça no conhecimento da Palavra de Deus!',
+  url:'https://sites.google.com/view/adbrascubatao/home',
+  ativo:true
+};
+function linkCursoValido(valor){
+  try{const u=new URL(valor);return u.protocol==='https:' && !u.username && !u.password;}catch{return false;}
+}
+function MateriaisEstudo({admin=false}){
+  const [curso,setCurso]=useState(CURSO_PADRAO), [carregando,setCarregando]=useState(true), [erro,setErro]=useState(''), [mensagem,setMensagem]=useState(''), [salvando,setSalvando]=useState(false);
+  async function carregar(){
+    setCarregando(true);setErro('');
+    try{
+      const {data,error}=await supabase.from('estudos_portal').select('titulo,descricao,url,ativo').eq('id',1).maybeSingle();
+      if(error)throw error;
+      if(!data)throw new Error('Cadastro do portal não encontrado.');
+      setCurso(data);
+    }catch(e){setErro('Não foi possível carregar a configuração dos materiais. Confira o SQL e tente novamente.');}
+    finally{setCarregando(false);}
+  }
+  useEffect(()=>{carregar();},[]);
+  async function salvar(e){
+    e.preventDefault();setSalvando(true);setMensagem('');
+    try{
+      const valores={titulo:curso.titulo.trim(),descricao:curso.descricao.trim(),url:curso.url.trim(),ativo:curso.ativo};
+      if(!valores.titulo || !linkCursoValido(valores.url))throw new Error('Preencha o título e um link completo iniciado por https://.');
+      const {data,error}=await supabase.from('estudos_portal').update(valores).eq('id',1).select('id');
+      if(error)throw error;
+      if(!data?.length)throw new Error('Nada foi salvo. Confira sua permissão de administrador.');
+      setCurso(valores);setMensagem('Salvo! O card será atualizado quando a página de Estudos for aberta novamente.');
+    }catch(e){setMensagem(e.message);}finally{setSalvando(false);}
+  }
+  if(admin)return <section className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-3">
+    <h3 className="font-bold text-slate-900">Portal de materiais — Estudos / EBD</h3>
+    <p className="text-xs text-slate-500">Este card abre seu site de aulas. Publique novas apostilas no mesmo site e mantenha o link. Os arquivos devem estar liberados para leitura pelo público.</p>
+    {erro && <p role="alert" className="text-sm text-red-700">{erro}<button type="button" onClick={carregar} className="block underline">Tentar novamente</button></p>}
+    <form onSubmit={salvar}>
+      <fieldset disabled={carregando || salvando || !!erro} className="space-y-3">
+        <label className="block text-xs">Título<input required maxLength={160} value={curso.titulo} onChange={e=>setCurso({...curso,titulo:e.target.value})} className="block w-full border rounded-xl p-3" /></label>
+        <label className="block text-xs">Descrição<textarea rows={3} maxLength={600} value={curso.descricao} onChange={e=>setCurso({...curso,descricao:e.target.value})} className="block w-full border rounded-xl p-3" /></label>
+        <label className="block text-xs">Link dos materiais<input required type="url" value={curso.url} onChange={e=>setCurso({...curso,url:e.target.value})} className="block w-full border rounded-xl p-3" /></label>
+        <label className="block text-sm"><input type="checkbox" checked={curso.ativo} onChange={e=>setCurso({...curso,ativo:e.target.checked})} /> Mostrar card em Estudos / EBD</label>
+        <button className="bg-[#0B1E3B] text-white px-4 py-3 rounded-xl text-sm font-bold">{carregando?'Carregando…':salvando?'Salvando…':'Salvar portal de materiais'}</button>
+      </fieldset>
+    </form><p role="status" className="text-sm">{mensagem}</p>
+  </section>;
+  if(carregando)return <p role="status" className="text-sm text-slate-500">Carregando materiais…</p>;
+  if(erro)return <div role="alert" className="bg-white p-4 rounded-xl text-sm">Não foi possível carregar os materiais.<button type="button" onClick={carregar} className="block underline mt-2">Tentar novamente</button></div>;
+  if(!curso.ativo || !linkCursoValido(curso.url))return null;
+  return <section className="bg-[#0B1E3B] text-white p-6 rounded-3xl shadow-sm space-y-3">
+    <span aria-hidden="true" className="text-3xl">📖</span>
+    <p className="text-xs font-bold uppercase tracking-wider text-amber-400">Aulas e apostilas</p>
+    <h2 className="text-xl font-bold leading-snug">{curso.titulo}</h2>
+    <p className="text-sm leading-relaxed whitespace-pre-line">{curso.descricao}</p>
+    <a href={curso.url} target="_blank" rel="noopener noreferrer" className="block bg-amber-400 text-slate-900 p-3 rounded-xl text-sm font-bold text-center">Acessar materiais ↗</a>
+    <p className="text-xs text-slate-300">Abre o site de materiais em uma nova aba.</p>
+  </section>;
+}
+
 const cacheLivros = new Map();
 function BibliaInterna() {
   const lerPreferencias = () => {try {return JSON.parse(localStorage.getItem('adbras-leitura') || '{}');}catch{return {};}};
@@ -789,6 +849,8 @@ export default function App() {
             <div className="w-12 h-1 bg-amber-400 rounded-full mt-1.5"></div>
           </div>
 
+          <MateriaisEstudo />
+
           <div className="space-y-4">
             {estudos.map((item) => (
               <div key={item.id} className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden space-y-3">
@@ -879,6 +941,7 @@ export default function App() {
                 <button onClick={handleLogoutAdmin} className="text-xs text-red-600 font-bold bg-red-50 px-2.5 py-1 rounded-lg">Sair</button>
               </div>
 
+              <MateriaisEstudo admin />
               <LocaisIgrejas admin />
               <RedesIgreja admin />
               <AdminVersiculos />
