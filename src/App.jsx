@@ -548,6 +548,60 @@ function CultosYoutube(){
   </section>;
 }
 
+function AtalhoPodcast({abrir}){
+  const [visivel,setVisivel]=useState(false);
+  useEffect(()=>{let ativo=true;supabase.from('podcast_episodios').select('id').eq('publicado',true).lte('data_publicacao',diaBrasilia()).limit(1).then(({data,error})=>{if(ativo)setVisivel(!error&&!!data?.length);});return()=>{ativo=false;};},[]);
+  return visivel?<button onClick={abrir} className="quick-item"><span className="quick-icon" aria-hidden="true">🎙️</span><span className="quick-label">Podcast</span></button>:null;
+}
+function PodcastIgreja({admin=false}){
+  const novo=()=>({titulo:'',descricao:'',tipo:'video',url:'',capa_url:'',data_publicacao:diaBrasilia(),publicado:false});
+  const [itens,setItens]=useState([]),[form,setForm]=useState(novo),[id,setId]=useState(null),[carregando,setCarregando]=useState(true),[ocupado,setOcupado]=useState(false),[erro,setErro]=useState(''),[mensagem,setMensagem]=useState('');
+  const ref=React.useRef(null);
+  async function carregar(){
+    setCarregando(true);setErro('');
+    try{let q=supabase.from('podcast_episodios').select('*').order('data_publicacao',{ascending:false}).order('created_at',{ascending:false});if(!admin)q=q.eq('publicado',true).lte('data_publicacao',diaBrasilia());const {data,error}=await q;if(error)throw error;setItens(data||[]);}catch{setErro('Não foi possível carregar os episódios. Tente novamente.');}finally{setCarregando(false);}
+  }
+  useEffect(()=>{carregar();},[admin]);
+  function limpar(){setId(null);setForm(novo());}
+  async function salvar(e){
+    e.preventDefault();setOcupado(true);setMensagem('');
+    try{
+      const dados={...form,titulo:form.titulo.trim(),descricao:form.descricao.trim(),url:form.url.trim(),capa_url:form.capa_url.trim()};
+      if(!dados.titulo||!dados.data_publicacao||!linkCursoValido(dados.url))throw new Error('Preencha título, data e o link completo do episódio, iniciado por https://.');
+      if(dados.capa_url&&!linkCursoValido(dados.capa_url))throw new Error('A capa deve ter um link iniciado por https://.');
+      const {data,error}=id?await supabase.from('podcast_episodios').update(dados).eq('id',id).select('id'):await supabase.from('podcast_episodios').insert(dados).select('id');
+      if(error)throw error;if(!data?.length)throw new Error('Nada foi salvo. Confira sua permissão de administrador.');
+      limpar();await carregar();setMensagem('Episódio salvo. Ao voltar à Home, o botão aparece se houver um episódio publicado com data de hoje ou anterior.');
+    }catch(e){setMensagem(e.message);}finally{setOcupado(false);}
+  }
+  async function alterar(item,excluir=false){
+    if(excluir&&!window.confirm('Excluir o episódio “'+item.titulo+'” do app? O conteúdo na plataforma original será mantido.'))return;
+    setOcupado(true);setMensagem('');
+    try{const q=excluir?supabase.from('podcast_episodios').delete().eq('id',item.id):supabase.from('podcast_episodios').update({publicado:!item.publicado}).eq('id',item.id);const {data,error}=await q.select('id');if(error)throw error;if(!data?.length)throw new Error('Sem permissão para alterar o episódio.');if(id===item.id)limpar();await carregar();setMensagem(excluir?'Episódio excluído do app.':'Publicação atualizada.');}catch(e){setMensagem(e.message);}finally{setOcupado(false);}
+  }
+  return <section className="space-y-4">
+    {!admin&&<div className="bg-[#061d3b] text-white p-6 rounded-3xl space-y-3"><span aria-hidden="true" className="text-4xl">🎙️</span><p className="text-amber-300 text-xs font-bold uppercase tracking-wider">AD Brás Cubatão</p><h1 className="text-2xl font-bold">Podcast</h1><p className="text-sm leading-relaxed">Conversas que aproximam, mensagens que fortalecem. Separe um momento e venha compartilhar essa caminhada de fé com a gente.</p></div>}
+    {admin&&<div ref={ref} className="bg-white p-5 rounded-3xl border space-y-3"><h2 className="text-lg font-bold">Podcast — episódios</h2><p className="text-xs text-slate-500">Cadastre o link de um episódio em áudio ou vídeo. O público abre o conteúdo na plataforma escolhida. O botão na Home aparece somente quando houver um episódio publicado. Você pode começar salvando como rascunho.</p>
+      <form onSubmit={salvar}><fieldset disabled={ocupado||carregando||!!erro} className="space-y-3">
+        <label className="block text-xs">Título<input required maxLength={160} value={form.titulo} onChange={e=>setForm({...form,titulo:e.target.value})} className="block w-full border rounded-xl p-3" /></label>
+        <label className="block text-xs">Descrição<textarea maxLength={2000} rows={3} value={form.descricao} onChange={e=>setForm({...form,descricao:e.target.value})} className="block w-full border rounded-xl p-3" /></label>
+        <label className="block text-xs">Formato<select value={form.tipo} onChange={e=>setForm({...form,tipo:e.target.value})} className="block w-full border rounded-xl p-3"><option value="video">Vídeo</option><option value="audio">Áudio</option></select></label>
+        <label className="block text-xs">Link do episódio<input required type="url" value={form.url} onChange={e=>setForm({...form,url:e.target.value})} placeholder="https://..." className="block w-full border rounded-xl p-3" /></label>
+        <label className="block text-xs">Link da imagem de capa (opcional)<input type="url" value={form.capa_url} onChange={e=>setForm({...form,capa_url:e.target.value})} placeholder="https://..." className="block w-full border rounded-xl p-3" /></label>
+        <label className="block text-xs">Data de publicação<input required type="date" value={form.data_publicacao} onChange={e=>setForm({...form,data_publicacao:e.target.value})} className="block w-full border rounded-xl p-3" /></label>
+        <label className="block text-sm"><input type="checkbox" checked={form.publicado} onChange={e=>setForm({...form,publicado:e.target.checked})} /> Publicar no app (data futura agenda a publicação)</label>
+        <button className="bg-[#061d3b] text-white rounded-xl p-3 text-sm font-bold">{ocupado?'Salvando…':id?'Salvar alterações':'Salvar episódio'}</button>{id&&<button type="button" onClick={limpar} className="ml-3 underline text-sm">Cancelar edição</button>}
+      </fieldset></form><p role="status" className="text-sm">{mensagem}</p>
+    </div>}
+    {carregando?<p role="status">Carregando episódios…</p>:erro?<div role="alert" className="bg-amber-50 p-4 rounded-xl text-sm">{erro}<button onClick={carregar} className="block underline mt-2">Tentar novamente</button></div>:!itens.length?<div className="bg-white p-6 rounded-3xl text-center space-y-2"><span className="text-3xl">🎙️</span><h2 className="font-bold">{admin?'Tudo pronto para o primeiro episódio':'Novas conversas vêm por aí'}</h2><p className="text-sm text-slate-500">{admin?'Quando tiver o material, cadastre acima. Até lá, o botão Podcast ficará oculto na Home.':'Em breve, teremos conteúdo para compartilhar com você.'}</p></div>:itens.map(item=><article key={item.id} className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+      <div className="bg-[#061d3b] h-40 flex items-center justify-center relative"><span aria-hidden="true" className="text-5xl">🎙️</span>{item.capa_url&&linkCursoValido(item.capa_url)&&<img key={item.capa_url} src={item.capa_url} alt="" loading="lazy" onError={e=>{e.currentTarget.style.display='none';}} className="absolute inset-0 w-full h-full object-cover" />}</div>
+      <div className="p-5 space-y-3"><p className="text-xs text-slate-500">{item.tipo==='audio'?'🎧 Áudio':'▶ Vídeo'} · {item.data_publicacao.split('-').reverse().join('/')}{admin?' · '+(!item.publicado?'Rascunho / oculto':item.data_publicacao>diaBrasilia()?'Agendado':'Publicado'):''}</p><h2 className="text-lg font-bold text-[#061d3b] break-words">{item.titulo}</h2><p className="text-sm text-slate-600 whitespace-pre-line break-words">{item.descricao}</p>
+      {linkCursoValido(item.url)&&<a href={item.url} target="_blank" rel="noopener noreferrer" className="block bg-[#061d3b] text-white rounded-xl p-3 text-center text-sm font-bold">{item.tipo==='audio'?'Ouvir episódio':'Assistir episódio'} ↗</a>}
+      {admin&&<div className="flex flex-wrap gap-4 text-sm border-t pt-3"><button disabled={ocupado} className="underline" onClick={()=>{setId(item.id);setForm({titulo:item.titulo,descricao:item.descricao,tipo:item.tipo,url:item.url,capa_url:item.capa_url,data_publicacao:item.data_publicacao,publicado:item.publicado});setMensagem('Editando '+item.titulo);ref.current?.scrollIntoView({behavior:'smooth'});}}>Editar</button><button disabled={ocupado} className="underline" onClick={()=>alterar(item)}>{item.publicado?'Ocultar':'Publicar'}</button><button disabled={ocupado} className="text-red-700 underline" onClick={()=>alterar(item,true)}>Excluir</button></div>}
+      </div></article>)}
+  </section>;
+}
+
 const cacheLivros = new Map();
 function BibliaInterna() {
   const lerPreferencias = () => {try {return JSON.parse(localStorage.getItem('adbras-leitura') || '{}');}catch{return {};}};
@@ -960,6 +1014,7 @@ export default function App() {
           <section className="quick-section">
             <div className="quick-title"><h2>Acesso Rápido</h2><span></span></div>
             <div className="quick-grid">
+              <AtalhoPodcast abrir={()=>setPaginaAtual('podcast')} />
               {atalhos.map((item) => (
                 <button
                   key={item.id}
@@ -1062,6 +1117,7 @@ export default function App() {
 
               <AgendaCampo gestao departamentos={departamentos} />
               {adminLogado && <>
+              <PodcastIgreja admin />
               <MuralComunidade admin />
               <AcessoSecretaria />
               <MateriaisEstudo admin />
@@ -1168,6 +1224,7 @@ export default function App() {
       )}
 
       {/* ================= 7. CULTOS ================= */}
+      {paginaAtual === 'podcast' && <main className="max-w-md mx-auto px-4 pt-6 pb-24 space-y-5"><button onClick={()=>setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">← Voltar ao Menu Principal</button><PodcastIgreja /></main>}
       {paginaAtual === 'cultos' && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">← Voltar ao Menu Principal</button>
