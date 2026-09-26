@@ -154,6 +154,7 @@ function RedesIgreja({admin=false}) {
     <h3 className="font-bold">Redes sociais da igreja — Home</h3>
     <p className="text-xs text-slate-500">Cole o link completo. Deixe vazio para ocultar o botão. Para WhatsApp, use o link do contato, grupo ou canal.</p>
     <form onSubmit={salvar} className="space-y-3">
+      <p className="text-xs text-slate-500">O endereço do YouTube também é usado em Cultos e transmissões. Prefira o link do canal, como https://www.youtube.com/@adbrascubatao. Para transmitir um vídeo específico, você também pode usar o link dele.</p>
       {REDES_IGREJA_CAMPOS.map(r=><label key={r.campo} className="block text-xs">{r.nome}<input type="url" placeholder="https://" value={links[r.campo]||''} disabled={carregando || salvando || erroCarga} onChange={e=>setLinks({...links,[r.campo]:e.target.value})} className="block w-full border rounded-xl p-2" /></label>)}
       <button disabled={carregando || salvando || erroCarga} className="bg-[#0B1E3B] text-white rounded-xl px-4 py-2 text-sm">{carregando?'Carregando…':salvando?'Salvando…':'Salvar redes da igreja'}</button>
     </form><p role="status" className="text-xs">{mensagem}</p>
@@ -511,6 +512,39 @@ function MuralComunidade({admin=false}){
       {admin&&<div className="flex flex-wrap gap-3 border-t pt-3 text-sm"><button disabled={ocupado} className="underline" onClick={()=>{setId(item.id);setForm({titulo:item.titulo,categoria:item.categoria,conteudo:item.conteudo,contato:item.contato,link:item.link,publicado_em:item.publicado_em,ativo:item.ativo,resolvido:item.resolvido});setMensagem('Editando '+item.titulo);ref.current?.scrollIntoView({behavior:'smooth'});}}>Editar</button><button disabled={ocupado} className="underline" onClick={()=>acao(item,'visibilidade')}>{item.ativo?'Ocultar':'Mostrar'}</button><button disabled={ocupado} className="underline" onClick={()=>acao(item,'resolver')}>{item.resolvido?'Reabrir':'Marcar resolvido'}</button><button disabled={ocupado} className="text-red-700 underline" onClick={()=>acao(item,'excluir')}>Excluir</button></div>}
       </article>;
     })}
+  </section>;
+}
+
+function destinoCultoYoutube(valor){
+  const config=REDES_IGREJA_CAMPOS.find(r=>r.campo==='youtube_url');
+  if(!valor || !redeIgrejaValida(valor,config))return null;
+  const url=new URL(valor);
+  const partes=url.pathname.split('/').filter(Boolean);
+  const canal=partes[0]?.startsWith('@')?'/'+partes[0]:['channel','c','user'].includes(partes[0]) && partes[1]?'/'+partes[0]+'/'+partes[1]:null;
+  if(canal){url.pathname=canal+'/live';url.search='';url.hash='';}
+  return url.toString();
+}
+function CultosYoutube(){
+  const [url,setUrl]=useState(''),[carregando,setCarregando]=useState(true),[erro,setErro]=useState('');
+  async function carregar(){
+    setCarregando(true);setErro('');
+    try{
+      const {data,error}=await supabase.from('redes_igreja').select('youtube_url').eq('id',1).maybeSingle();
+      if(error || !data)throw new Error();
+      setUrl(data.youtube_url||'');
+    }catch{setErro('Não foi possível carregar o link da transmissão. Tente novamente.');}finally{setCarregando(false);}
+  }
+  useEffect(()=>{carregar();},[]);
+  const destino=destinoCultoYoutube(url);
+  return <section className="space-y-4">
+    <div className="bg-[#061d3b] text-white rounded-3xl p-6 space-y-3"><span aria-hidden="true" className="text-4xl">📺</span><h1 className="text-2xl font-bold">Cultos e transmissões</h1><p className="text-sm leading-relaxed">Mesmo à distância, vamos adorar juntos. Acompanhe os cultos da AD Brás Cubatão pelo YouTube.</p></div>
+    <div className="bg-white rounded-3xl p-6 space-y-4 shadow-sm">
+      {carregando?<p role="status" className="text-sm">Carregando transmissão…</p>:erro?<div role="alert" className="text-sm"><p>{erro}</p><button onClick={carregar} className="underline mt-3">Tentar novamente</button></div>:destino?<>
+        <a href={destino} target="_blank" rel="noopener noreferrer" className="block bg-red-600 text-white rounded-xl p-4 text-sm font-bold text-center">▶ Acessar transmissão no YouTube</a>
+        <p className="text-sm text-slate-600 leading-relaxed">As transmissões acontecem nos horários dos cultos. Este botão abre o YouTube; a disponibilidade da live é exibida lá.</p>
+        <a href={url} target="_blank" rel="noopener noreferrer" className="block border border-slate-200 rounded-xl p-3 text-sm text-center font-bold text-[#061d3b]">Visitar nosso YouTube</a>
+      </>:<p className="text-sm text-slate-600">Em breve, o link das nossas transmissões estará disponível aqui. Será uma alegria ter você com a gente!</p>}
+    </div>
   </section>;
 }
 
@@ -1137,12 +1171,7 @@ export default function App() {
       {paginaAtual === 'cultos' && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">← Voltar ao Menu Principal</button>
-          <div className="bg-white p-5 rounded-3xl shadow-sm space-y-4">
-            <h1 className="text-lg font-bold">Cultos e Transmissões</h1>
-            <div className="aspect-video bg-slate-900 rounded-2xl flex items-center justify-center">
-              <a href="https://youtube.com" target="_blank" rel="noreferrer" className="bg-red-600 text-white px-4 py-2 rounded-xl text-xs font-bold">▶ Assistir no YouTube</a>
-            </div>
-          </div>
+          <CultosYoutube />
         </main>
       )}
 
