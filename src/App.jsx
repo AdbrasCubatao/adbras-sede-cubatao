@@ -452,6 +452,68 @@ function AcessoSecretaria(){
   return <section className="bg-white rounded-3xl p-5 space-y-3"><h3 className="font-bold">Acesso da secretaria</h3><p className="text-xs text-slate-500">Primeiro crie a conta em Supabase → Authentication → Users. Depois informe o e-mail aqui. Essa permissão libera apenas a gestão dos eventos do campo.</p><form onSubmit={e=>{e.preventDefault();alterar(email,true);}} className="space-y-3"><input aria-label="E-mail da secretaria" required type="email" value={email} onChange={e=>setEmail(e.target.value)} className="border p-3 rounded-xl w-full" placeholder="E-mail da secretaria"/><button disabled={ocupado} className="bg-[#061d3b] text-white p-3 rounded-xl">Liberar acesso</button></form><p role="status" className="text-sm">{mensagem}</p>{lista.map(v=><div key={v.user_id} className="text-sm flex justify-between gap-2"><span className="break-all">{v.email}</span><button disabled={ocupado} className="text-red-700 underline" onClick={()=>alterar(v.email,false)}>Remover</button></div>)}</section>;
 }
 
+const CATEGORIAS_MURAL=[['achados','🔎','Achados e perdidos'],['emprego','💼','Vagas de emprego'],['doacoes','🎁','Doações'],['ajuda','🤝','Pedidos de ajuda'],['comunicados','📢','Comunicados']];
+function MuralComunidade({admin=false}){
+  const novo=()=>({titulo:'',categoria:'comunicados',conteudo:'',contato:'',link:'',publicado_em:diaBrasilia(),ativo:true,resolvido:false});
+  const [itens,setItens]=useState([]),[form,setForm]=useState(novo),[id,setId]=useState(null),[filtro,setFiltro]=useState('todos'),[busca,setBusca]=useState(''),[carregando,setCarregando]=useState(true),[ocupado,setOcupado]=useState(false),[erro,setErro]=useState(''),[mensagem,setMensagem]=useState('');
+  const ref=React.useRef(null);
+  async function carregar(){
+    setCarregando(true);setErro('');
+    try{
+      let q=supabase.from('mural_comunidade').select('*').order('publicado_em',{ascending:false}).order('created_at',{ascending:false});
+      if(!admin)q=q.eq('ativo',true).lte('publicado_em',diaBrasilia());
+      const {data,error}=await q;if(error)throw error;setItens(data||[]);
+    }catch{setErro('Não foi possível carregar o mural. Tente novamente.');}finally{setCarregando(false);}
+  }
+  useEffect(()=>{carregar();},[admin]);
+  function limpar(){setId(null);setForm(novo());}
+  async function salvar(e){
+    e.preventDefault();setOcupado(true);setMensagem('');
+    try{
+      const dados={...form,titulo:form.titulo.trim(),conteudo:form.conteudo.trim(),contato:form.contato.trim(),link:form.link.trim()};
+      if(!dados.titulo||!dados.conteudo||!dados.publicado_em)throw new Error('Preencha título, mensagem e data.');
+      if(dados.link && !linkCursoValido(dados.link))throw new Error('Use um link completo iniciado por https://.');
+      const {data,error}=id?await supabase.from('mural_comunidade').update(dados).eq('id',id).select('id'):await supabase.from('mural_comunidade').insert(dados).select('id');
+      if(error)throw error;if(!data?.length)throw new Error('Nada foi salvo. Confira sua permissão de administrador.');
+      limpar();await carregar();setMensagem('Aviso salvo! Abra novamente o mural para ver a atualização.');
+    }catch(e){setMensagem(e.message);}finally{setOcupado(false);}
+  }
+  async function acao(item,tipo){
+    if(tipo==='excluir'&&!window.confirm('Excluir definitivamente o aviso “'+item.titulo+'”?'))return;
+    setOcupado(true);setMensagem('');
+    try{
+      const q=tipo==='excluir'?supabase.from('mural_comunidade').delete().eq('id',item.id):supabase.from('mural_comunidade').update(tipo==='visibilidade'?{ativo:!item.ativo}:{resolvido:!item.resolvido}).eq('id',item.id);
+      const {data,error}=await q.select('id');if(error)throw error;if(!data?.length)throw new Error('Não foi possível alterar este aviso. Confira sua permissão.');
+      if(id===item.id)limpar();await carregar();setMensagem(tipo==='excluir'?'Aviso excluído.':'Aviso atualizado.');
+    }catch(e){setMensagem(e.message);}finally{setOcupado(false);}
+  }
+  const normalizar=s=>(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  const visiveis=itens.filter(v=>(filtro==='todos'||v.categoria===filtro)&&normalizar(v.titulo+' '+v.conteudo).includes(normalizar(busca.trim())));
+  return <section className="space-y-4">
+    {!admin && <><div className="bg-[#061d3b] text-white p-6 rounded-3xl space-y-3"><span aria-hidden="true" className="text-4xl">🤝</span><p className="text-xs uppercase tracking-wider text-amber-300 font-bold">Nossa comunidade</p><h1 className="text-2xl font-bold">Cuidar também é compartilhar</h1><p className="text-sm leading-relaxed">Encontrou algo na igreja? Tem uma oportunidade de trabalho ou algo para doar? Este é o nosso espaço de cuidado, ajuda e boas notícias.</p></div><div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 text-sm text-slate-700">Quer compartilhar um aviso? Procure a secretaria da igreja para encaminhá-lo à equipe responsável pelo mural. 💛</div></>}
+    {admin && <div ref={ref} className="bg-white p-5 rounded-3xl border space-y-3"><h2 className="font-bold text-lg">Mural da comunidade</h2><p className="text-xs text-slate-500">Publique oportunidades, doações e avisos. Use apenas contatos autorizados para divulgação. Datas futuras deixam o aviso agendado.</p><h3 className="font-bold text-sm">{id?'Editar aviso':'Novo aviso'}</h3>
+      <form onSubmit={salvar}><fieldset disabled={ocupado||carregando||!!erro} className="space-y-3">
+        <label className="block text-xs">Categoria<select value={form.categoria} onChange={e=>setForm({...form,categoria:e.target.value})} className="block w-full border rounded-xl p-3">{CATEGORIAS_MURAL.map(([v,icone,nome])=><option key={v} value={v}>{icone} {nome}</option>)}</select></label>
+        <label className="block text-xs">Título<input required maxLength={160} value={form.titulo} onChange={e=>setForm({...form,titulo:e.target.value})} className="block w-full border rounded-xl p-3" placeholder="Ex.: Encontramos uma Bíblia após o culto" /></label>
+        <label className="block text-xs">Mensagem<textarea required rows={4} maxLength={4000} value={form.conteudo} onChange={e=>setForm({...form,conteudo:e.target.value})} className="block w-full border rounded-xl p-3" /></label>
+        <label className="block text-xs">Data da publicação<input required type="date" value={form.publicado_em} onChange={e=>setForm({...form,publicado_em:e.target.value})} className="block w-full border rounded-xl p-3" /></label>
+        <label className="block text-xs">Contato ou orientação (opcional)<input maxLength={300} value={form.contato} onChange={e=>setForm({...form,contato:e.target.value})} className="block w-full border rounded-xl p-3" placeholder="Ex.: Procure a secretaria após o culto" /></label>
+        <label className="block text-xs">Link para contato ou detalhes (opcional)<input type="url" value={form.link} onChange={e=>setForm({...form,link:e.target.value})} className="block w-full border rounded-xl p-3" placeholder="https://..." /></label>
+        <label className="block text-sm"><input type="checkbox" checked={form.ativo} onChange={e=>setForm({...form,ativo:e.target.checked})} /> Mostrar no mural</label>
+        <label className="block text-sm"><input type="checkbox" checked={form.resolvido} onChange={e=>setForm({...form,resolvido:e.target.checked})} /> Resolvido / encerrado</label>
+        <button className="bg-[#061d3b] text-white p-3 rounded-xl text-sm font-bold">{ocupado?'Salvando…':id?'Salvar alterações':'Salvar aviso'}</button>{id && <button type="button" onClick={limpar} className="ml-3 underline text-sm">Cancelar edição</button>}
+      </fieldset></form><p role="status" className="text-sm">{mensagem}</p>
+    </div>}
+    <div className="bg-white p-4 rounded-2xl space-y-3"><label className="block text-sm">O que você procura?<select value={filtro} onChange={e=>setFiltro(e.target.value)} className="block w-full border rounded-xl p-3"><option value="todos">Todos os avisos</option>{CATEGORIAS_MURAL.map(([v,i,n])=><option key={v} value={v}>{i} {n}</option>)}</select></label><input aria-label="Buscar no mural" value={busca} onChange={e=>setBusca(e.target.value)} className="w-full border rounded-xl p-3 text-sm" placeholder="Buscar um aviso…" /><button onClick={carregar} disabled={carregando||ocupado} className="underline text-sm">Atualizar mural</button></div>
+    {carregando?<p role="status">Carregando avisos…</p>:erro?<div role="alert" className="bg-amber-50 rounded-xl p-4 text-sm">{erro}</div>:!visiveis.length?<div className="bg-white rounded-3xl p-6 text-center space-y-2"><span className="text-3xl">💛</span><h2 className="font-bold">{busca||filtro!=='todos'?'Nenhum aviso encontrado':'Nosso mural está de portas abertas'}</h2><p className="text-sm text-slate-500">{busca||filtro!=='todos'?'Experimente outro termo ou categoria.':'Assim que houver novidades, elas aparecerão aqui. Juntos, cuidamos uns dos outros.'}</p></div>:visiveis.map(item=>{
+      const cat=CATEGORIAS_MURAL.find(c=>c[0]===item.categoria);
+      return <article key={item.id} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-3 break-words"><div className="flex flex-wrap gap-2"><span className="bg-amber-50 text-amber-800 rounded-full px-3 py-1 text-xs font-bold">{cat?.[1]} {cat?.[2]}</span>{item.resolvido&&<span className="bg-emerald-50 text-emerald-800 rounded-full px-3 py-1 text-xs font-bold">Resolvido / encerrado</span>}{admin&&<span className="text-xs text-slate-500">{!item.ativo?'Oculto':item.publicado_em>diaBrasilia()?'Agendado':'Visível'}</span>}</div><h2 className="font-bold text-lg text-[#061d3b]">{item.titulo}</h2><p className="text-xs text-slate-500">{item.publicado_em>diaBrasilia()?'Publicação prevista para':'Publicado em'} {item.publicado_em.split('-').reverse().join('/')}</p><p className="text-sm leading-relaxed whitespace-pre-line text-slate-700">{item.conteudo}</p>{item.contato&&<p className="bg-slate-50 rounded-xl p-3 text-sm whitespace-pre-line">💬 {item.contato}</p>}{!item.resolvido&&item.link&&linkCursoValido(item.link)&&<a href={item.link} target="_blank" rel="noopener noreferrer" className="block bg-[#061d3b] text-white rounded-xl p-3 text-center text-sm font-bold">Contato / mais informações ↗</a>}
+      {admin&&<div className="flex flex-wrap gap-3 border-t pt-3 text-sm"><button disabled={ocupado} className="underline" onClick={()=>{setId(item.id);setForm({titulo:item.titulo,categoria:item.categoria,conteudo:item.conteudo,contato:item.contato,link:item.link,publicado_em:item.publicado_em,ativo:item.ativo,resolvido:item.resolvido});setMensagem('Editando '+item.titulo);ref.current?.scrollIntoView({behavior:'smooth'});}}>Editar</button><button disabled={ocupado} className="underline" onClick={()=>acao(item,'visibilidade')}>{item.ativo?'Ocultar':'Mostrar'}</button><button disabled={ocupado} className="underline" onClick={()=>acao(item,'resolver')}>{item.resolvido?'Reabrir':'Marcar resolvido'}</button><button disabled={ocupado} className="text-red-700 underline" onClick={()=>acao(item,'excluir')}>Excluir</button></div>}
+      </article>;
+    })}
+  </section>;
+}
+
 const cacheLivros = new Map();
 function BibliaInterna() {
   const lerPreferencias = () => {try {return JSON.parse(localStorage.getItem('adbras-leitura') || '{}');}catch{return {};}};
@@ -662,11 +724,6 @@ export default function App() {
   }, []);
 
   // 4. OUTROS ESTADOS DA APLICAÇÃO
-  const [avisos, setAvisos] = useState([]);
-  const [tituloAv, setTituloAv] = useState('');
-  const [categoriaAv, setCategoriaAv] = useState('Geral');
-  const [conteudoAv, setConteudoAv] = useState('');
-
   const [pedidos, setPedidos] = useState([]);
   const [novoNome, setNovoNome] = useState('');
   const [novoPedido, setNovoPedido] = useState('');
@@ -971,6 +1028,7 @@ export default function App() {
 
               <AgendaCampo gestao departamentos={departamentos} />
               {adminLogado && <>
+              <MuralComunidade admin />
               <AcessoSecretaria />
               <MateriaisEstudo admin />
               <LocaisIgrejas admin />
@@ -1092,16 +1150,7 @@ export default function App() {
       {paginaAtual === 'avisos' && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">← Voltar ao Menu Principal</button>
-          <h1 className="text-2xl font-bold">Mural de Avisos</h1>
-          {avisos.length === 0 ? (
-            <div className="bg-white p-6 rounded-3xl text-center text-xs text-slate-500">Nenhum aviso publicado no momento.</div>
-          ) : avisos.map((aviso) => (
-            <div key={aviso.id} className="bg-white p-4 rounded-2xl shadow-sm space-y-2">
-              <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full uppercase">{aviso.categoria}</span>
-              <h2 className="font-bold text-sm">{aviso.titulo}</h2>
-              <p className="text-xs text-slate-600">{aviso.conteudo}</p>
-            </div>
-          ))}
+          <MuralComunidade />
         </main>
       )}
 
