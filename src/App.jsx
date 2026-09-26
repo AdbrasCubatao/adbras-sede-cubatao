@@ -602,6 +602,32 @@ function PodcastIgreja({admin=false}){
   </section>;
 }
 
+function LouvoresRadio({admin=false}){
+  const [itens,setItens]=useState([]),[carregando,setCarregando]=useState(true),[erro,setErro]=useState(''),[salvando,setSalvando]=useState(null),[mensagem,setMensagem]=useState('');
+  async function carregar(){
+    setCarregando(true);setErro('');
+    try{const {data,error}=await supabase.from('louvores_links').select('*').order('id');if(error)throw error;setItens(data||[]);}catch{setErro('Não foi possível carregar esta área. Tente novamente.');}finally{setCarregando(false);}
+  }
+  useEffect(()=>{carregar();},[]);
+  function editar(id,campo,valor){setItens(atual=>atual.map(v=>v.id===id?{...v,[campo]:valor}:v));}
+  async function salvar(e,item){
+    e.preventDefault();setSalvando(item.id);setMensagem('');
+    try{
+      const dados={titulo:item.titulo.trim(),descricao:item.descricao.trim(),url:item.url.trim()};
+      if(!dados.titulo)throw new Error('Preencha o título.');
+      if(dados.url&&!linkCursoValido(dados.url))throw new Error('Use um link completo iniciado por https://.');
+      const {data,error}=await supabase.from('louvores_links').update(dados).eq('id',item.id).select('id');if(error)throw error;if(!data?.length)throw new Error('Nada foi salvo. Confira sua permissão de administrador.');
+      setItens(atual=>atual.map(v=>v.id===item.id?{...v,...dados}:v));setMensagem('Salvo! Abra Louvores novamente para conferir.');
+    }catch(e){setMensagem(e.message);}finally{setSalvando(null);}
+  }
+  return <section className="space-y-4">
+    {admin?<div className="bg-white p-5 rounded-3xl space-y-2"><h2 className="font-bold text-lg">Louvores e rádio</h2><p className="text-xs text-slate-500">Cadastre a página do Brás Adoração e a página da rádio. Sem link, o card aparece como “Em breve”. Os links abrem em uma nova aba.</p><p role="status" className="text-sm">{mensagem}</p></div>:<div className="bg-[#061d3b] text-white p-6 rounded-3xl space-y-3"><span aria-hidden="true" className="text-4xl">🎶</span><h1 className="text-2xl font-bold">Louvores e rádio</h1><p className="text-sm leading-relaxed">Uma canção, uma palavra, um momento com Deus. Encontre aqui companhia para seus momentos de fé e adoração.</p></div>}
+    {carregando?<p role="status">Carregando…</p>:erro?<div role="alert" className="bg-amber-50 p-4 rounded-xl text-sm">{erro}<button onClick={carregar} className="block underline mt-2">Tentar novamente</button></div>:itens.map(item=><article key={item.id} className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 space-y-3"><span aria-hidden="true" className="text-4xl">{item.id==='adoracao'?'🎵':'📻'}</span>
+      {admin?<form onSubmit={e=>salvar(e,item)}><fieldset disabled={salvando!==null} className="space-y-3"><p className="text-xs font-bold text-amber-700">{item.id==='adoracao'?'BRÁS ADORAÇÃO':'RÁDIO'}</p><label className="block text-xs">Título<input required maxLength={120} value={item.titulo} onChange={e=>editar(item.id,'titulo',e.target.value)} className="block w-full border rounded-xl p-3" /></label><label className="block text-xs">Descrição<textarea rows={3} maxLength={600} value={item.descricao} onChange={e=>editar(item.id,'descricao',e.target.value)} className="block w-full border rounded-xl p-3" /></label><label className="block text-xs">Link (pode deixar vazio por enquanto)<input type="url" value={item.url} onChange={e=>editar(item.id,'url',e.target.value)} placeholder="https://..." className="block w-full border rounded-xl p-3" /></label><button className="bg-[#061d3b] text-white rounded-xl p-3 text-sm font-bold">{salvando===item.id?'Salvando…':'Salvar'}</button></fieldset></form>:<><h2 className="text-xl font-bold text-[#061d3b] break-words">{item.titulo}</h2><p className="text-sm text-slate-600 whitespace-pre-line break-words">{item.descricao}</p>{item.url&&linkCursoValido(item.url)?<a href={item.url} target="_blank" rel="noopener noreferrer" className="block bg-[#061d3b] text-white p-3 rounded-xl text-center text-sm font-bold">{item.id==='adoracao'?'Acessar Brás Adoração':'Acessar rádio'} ↗</a>:<div className="bg-amber-50 text-amber-800 rounded-xl p-3 text-sm text-center">Em breve 💛</div>}</>}
+    </article>)}
+  </section>;
+}
+
 const cacheLivros = new Map();
 function BibliaInterna() {
   const lerPreferencias = () => {try {return JSON.parse(localStorage.getItem('adbras-leitura') || '{}');}catch{return {};}};
@@ -1117,6 +1143,7 @@ export default function App() {
 
               <AgendaCampo gestao departamentos={departamentos} />
               {adminLogado && <>
+              <LouvoresRadio admin />
               <PodcastIgreja admin />
               <MuralComunidade admin />
               <AcessoSecretaria />
@@ -1357,8 +1384,7 @@ export default function App() {
       {paginaAtual === 'louvores' && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">← Voltar ao Menu Principal</button>
-          <div className="bg-[#0B1E3B] text-white p-6 rounded-3xl text-center"><span className="text-4xl">🎵</span><h1 className="text-xl font-bold mt-2">Louvores</h1></div>
-          <div className="bg-white p-6 rounded-3xl shadow-sm text-center"><p className="text-xs text-slate-500">Os louvores, playlists e apresentações da igreja serão publicados aqui.</p><a href="https://youtube.com" target="_blank" rel="noreferrer" className="block mt-4 bg-red-600 text-white py-3 rounded-xl text-xs font-bold">Abrir canal no YouTube</a></div>
+          <LouvoresRadio />
         </main>
       )}
 
