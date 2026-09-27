@@ -390,8 +390,8 @@ function Apostilas({admin=false}){
   </section>;
 }
 
-function AgendaCampo({gestao=false,departamentos=[]}){
-  const novo=()=>({titulo:'',data:diaBrasilia(),horario:'',local:'',descricao:'',cancelado:false});
+function AgendaCampo({gestao=false,departamentos=[],aoSalvar}){
+  const novo=()=>({origem:'campo',titulo:'',data:diaBrasilia(),horario:'',local:'',descricao:'',cancelado:false});
   const [itens,setItens]=useState([]),[origem,setOrigem]=useState('todos'),[mes,setMes]=useState(''),[passados,setPassados]=useState(false),[erro,setErro]=useState(''),[carregando,setCarregando]=useState(true),[form,setForm]=useState(novo),[id,setId]=useState(null),[ocupado,setOcupado]=useState(false),[mensagem,setMensagem]=useState('');
   const ref=React.useRef(null);
   async function carregar(){
@@ -399,7 +399,7 @@ function AgendaCampo({gestao=false,departamentos=[]}){
     try{
       const [campo,depts]=await Promise.all([supabase.from('agenda_campo').select('*').order('data'),supabase.from('departamento_eventos').select('*').eq('ativo',true).order('data')]);
       if(campo.error || depts.error)throw new Error('Não foi possível carregar toda a agenda.');
-      setItens([...(campo.data||[]).map(v=>({...v,origem:'campo',chave:'campo-'+v.id})),...(depts.data||[]).map(v=>({...v,origem:v.departamento_id,chave:'dept-'+v.id,cancelado:false}))].sort((a,b)=>(a.data+' '+(a.horario||'')).localeCompare(b.data+' '+(b.horario||''))));
+      setItens([...(campo.data||[]).map(v=>({...v,origem:'campo',chave:'campo-'+v.id})),...(depts.data||[]).map(v=>({...v,origem:v.departamento_id,chave:'dept-'+v.id,cancelado:!!v.cancelado}))].sort((a,b)=>(a.data+' '+(a.horario||'')).localeCompare(b.data+' '+(b.horario||''))));
     }catch(e){setErro(e.message);}finally{setCarregando(false);}
   }
   useEffect(()=>{carregar();},[]);
@@ -407,19 +407,24 @@ function AgendaCampo({gestao=false,departamentos=[]}){
   async function salvar(e){
     e.preventDefault();setOcupado(true);setMensagem('');
     try{
-      const dados={...form,titulo:form.titulo.trim(),local:form.local.trim(),descricao:form.descricao.trim(),horario:form.horario||null};
+      const {origem:destino,...campos}=form;
+      if(destino!=='campo'&&!departamentos.some(d=>d.id===destino))throw new Error('Selecione um departamento válido.');
+      const tabela=destino==='campo'?'agenda_campo':'departamento_eventos';
+      const dados={...campos,titulo:form.titulo.trim(),local:form.local.trim(),descricao:form.descricao.trim(),horario:form.horario||null};
+      if(destino!=='campo')dados.departamento_id=destino;
       if(!dados.titulo || !dados.data)throw new Error('Preencha título e data.');
-      const {data,error}=id?await supabase.from('agenda_campo').update(dados).eq('id',id).select('id'):await supabase.from('agenda_campo').insert(dados).select('id');
+      const {data,error}=id?await supabase.from(tabela).update(dados).eq('id',id).select('id'):await supabase.from(tabela).insert(dados).select('id');
       if(error)throw error;if(!data?.length)throw new Error('Sem permissão para salvar.');
-      limpar();await carregar();setMensagem('Evento salvo na Agenda Geral.');
+      limpar();await carregar();if(aoSalvar)await aoSalvar();setMensagem('Evento salvo. A Agenda Geral e o cadastro do departamento usam a mesma informação.');
     }catch(e){setMensagem(e.message);}finally{setOcupado(false);}
   }
   const nomeOrigem=o=>o==='campo'?'Campo':departamentos.find(d=>d.id===o)?.nome||o;
   const visiveis=itens.filter(v=>(origem==='todos'||v.origem===origem)&&(!mes||v.data?.startsWith(mes))&&(passados||v.data>=diaBrasilia()));
   return <section className="space-y-4">
     <div className="bg-[#061d3b] text-white rounded-3xl p-6 space-y-2"><span className="text-3xl">📅</span><h1 className="text-2xl font-bold">Agenda Geral do Campo</h1><p className="text-sm">Caminhe com a gente! Confira a programação do campo e dos nossos departamentos.</p></div>
-    {gestao && <div ref={ref} className="bg-white p-5 rounded-3xl space-y-3"><h2 className="font-bold">{id?'Editar evento do campo':'Cadastrar evento do campo'}</h2><p className="text-xs text-slate-500">Os eventos dos departamentos aparecem automaticamente e são alterados no cadastro de origem. Para cancelar um evento do campo, use Editar e marque Cancelado.</p>
+    {gestao && <div ref={ref} className="bg-white p-5 rounded-3xl space-y-3"><h2 className="font-bold">{id?'Editar evento':'Cadastrar evento'}</h2><p className="text-xs text-slate-500">Selecione Campo ou um departamento. As alterações são feitas no cadastro original. Para cancelar, use Editar e marque Evento cancelado; desmarque para reativar.</p>
       <form onSubmit={salvar}><fieldset disabled={ocupado} className="space-y-3">
+        <label className="block text-xs">Responsável pelo evento<select disabled={!!id} value={form.origem} onChange={e=>setForm({...form,origem:e.target.value})} className="block w-full border p-3 rounded-xl"><option value="campo">Campo</option>{departamentos.map(d=><option key={d.id} value={d.id}>{d.nome}</option>)}</select></label>
         <label className="block text-xs">Título<input required maxLength={160} value={form.titulo} onChange={e=>setForm({...form,titulo:e.target.value})} className="block w-full border p-3 rounded-xl" /></label>
         <div className="grid grid-cols-2 gap-3"><label className="text-xs">Data<input required type="date" value={form.data} onChange={e=>setForm({...form,data:e.target.value})} className="block w-full border p-3 rounded-xl" /></label><label className="text-xs">Horário<input type="time" value={form.horario} onChange={e=>setForm({...form,horario:e.target.value})} className="block w-full border p-3 rounded-xl" /></label></div>
         <label className="block text-xs">Local<input maxLength={300} value={form.local} onChange={e=>setForm({...form,local:e.target.value})} className="block w-full border p-3 rounded-xl" /></label>
@@ -436,7 +441,7 @@ function AgendaCampo({gestao=false,departamentos=[]}){
     {carregando?<p role="status">Carregando agenda…</p>:erro?<p role="alert" className="bg-amber-50 p-4 rounded-xl">{erro} Use “Atualizar agenda” para tentar novamente.</p>:!visiveis.length?<p className="bg-white p-5 rounded-2xl text-sm">Nenhum evento para estes filtros.</p>:visiveis.map(v=><article key={v.chave} className="bg-white p-5 rounded-3xl border border-slate-100 space-y-2">
       <span className="text-xs font-bold text-amber-700">{nomeOrigem(v.origem)}</span>{v.cancelado && <p className="text-red-700 font-bold">EVENTO CANCELADO</p>}
       <h2 className="text-lg font-bold">{v.titulo}</h2><p className="text-sm">📅 {v.data?.split('-').reverse().join('/')} · {v.horario?v.horario.slice(0,5):'Horário a confirmar'}</p><p className="text-sm">📍 {v.local||'Local a confirmar'}</p>{v.descricao && <p className="text-sm whitespace-pre-line text-slate-600">{v.descricao}</p>}
-      {gestao && v.origem==='campo' && <button className="underline text-sm" onClick={()=>{setId(v.id);setForm({titulo:v.titulo,data:v.data,horario:v.horario?.slice(0,5)||'',local:v.local||'',descricao:v.descricao||'',cancelado:v.cancelado});ref.current?.scrollIntoView({behavior:'smooth'});}}>Editar evento</button>}
+      {gestao && <button disabled={ocupado} className="underline text-sm" onClick={()=>{setId(v.id);setForm({origem:v.origem,titulo:v.titulo,data:v.data,horario:v.horario?.slice(0,5)||'',local:v.local||'',descricao:v.descricao||'',cancelado:!!v.cancelado});ref.current?.scrollIntoView({behavior:'smooth'});}}>Editar evento</button>}
     </article>)}
   </section>;
 }
@@ -450,7 +455,7 @@ function AcessoSecretaria(){
     const {error}=await supabase.rpc('gerenciar_secretaria',{email_alvo:alvo.trim(),permitir});
     if(error)setMensagem(error.message);else{setEmail('');await carregar();setMensagem(permitir?'Acesso liberado.':'Acesso removido.');}setOcupado(false);
   }
-  return <section className="bg-white rounded-3xl p-5 space-y-3"><h3 className="font-bold">Acesso da secretaria</h3><p className="text-xs text-slate-500">Primeiro crie a conta em Supabase → Authentication → Users. Depois informe o e-mail aqui. Essa permissão libera apenas a gestão dos eventos do campo.</p><form onSubmit={e=>{e.preventDefault();alterar(email,true);}} className="space-y-3"><input aria-label="E-mail da secretaria" required type="email" value={email} onChange={e=>setEmail(e.target.value)} className="border p-3 rounded-xl w-full" placeholder="E-mail da secretaria"/><button disabled={ocupado} className="bg-[#061d3b] text-white p-3 rounded-xl">Liberar acesso</button></form><p role="status" className="text-sm">{mensagem}</p>{lista.map(v=><div key={v.user_id} className="text-sm flex justify-between gap-2"><span className="break-all">{v.email}</span><button disabled={ocupado} className="text-red-700 underline" onClick={()=>alterar(v.email,false)}>Remover</button></div>)}</section>;
+  return <section className="bg-white rounded-3xl p-5 space-y-3"><h3 className="font-bold">Acesso da secretaria</h3><p className="text-xs text-slate-500">Primeiro crie a conta em Supabase → Authentication → Users. Depois informe o e-mail aqui. Essa permissão libera a gestão dos eventos do campo e dos departamentos, sem acesso às demais configurações.</p><form onSubmit={e=>{e.preventDefault();alterar(email,true);}} className="space-y-3"><input aria-label="E-mail da secretaria" required type="email" value={email} onChange={e=>setEmail(e.target.value)} className="border p-3 rounded-xl w-full" placeholder="E-mail da secretaria"/><button disabled={ocupado} className="bg-[#061d3b] text-white p-3 rounded-xl">Liberar acesso</button></form><p role="status" className="text-sm">{mensagem}</p>{lista.map(v=><div key={v.user_id} className="text-sm flex justify-between gap-2"><span className="break-all">{v.email}</span><button disabled={ocupado} className="text-red-700 underline" onClick={()=>alterar(v.email,false)}>Remover</button></div>)}</section>;
 }
 
 const CATEGORIAS_MURAL=[['achados','🔎','Achados e perdidos'],['emprego','💼','Vagas de emprego'],['doacoes','🎁','Doações'],['ajuda','🤝','Pedidos de ajuda'],['comunicados','📢','Comunicados']];
@@ -816,7 +821,7 @@ export default function App() {
 
   useEffect(() => {
     carregarDepartamentos();
-  }, []);
+  }, [paginaAtual]);
 
   useEffect(() => {
     let ativo=true,versao=0;
@@ -1141,7 +1146,7 @@ export default function App() {
                 <button onClick={handleLogoutAdmin} className="text-xs text-red-600 font-bold bg-red-50 px-2.5 py-1 rounded-lg">Sair</button>
               </div>
 
-              <AgendaCampo gestao departamentos={departamentos} />
+              <AgendaCampo gestao departamentos={departamentos} aoSalvar={carregarDepartamentos} />
               {adminLogado && <>
               <LouvoresRadio admin />
               <PodcastIgreja admin />
@@ -1339,7 +1344,7 @@ export default function App() {
           <section className="bg-white p-5 rounded-3xl shadow-sm space-y-3">
             <div className="flex items-center justify-between"><h2 className="font-extrabold text-base">Próximos eventos</h2><span className="text-xl">📅</span></div>
             {departamentoSelecionado.eventos.length > 0 ? departamentoSelecionado.eventos.map((evento) => (
-              <div key={evento.id} className="border-l-4 border-amber-400 pl-3"><p className="text-sm font-bold">{evento.titulo}</p><p className="text-xs text-slate-500">{evento.data} • {evento.horario}</p></div>
+              <div key={evento.id} className="border-l-4 border-amber-400 pl-3 space-y-1">{evento.cancelado && <p className="text-xs font-bold text-red-700">EVENTO CANCELADO</p>}<p className="text-sm font-bold">{evento.titulo}</p><p className="text-xs text-slate-500">{evento.data} • {evento.horario || 'Horário a confirmar'}</p>{evento.local && <p className="text-xs text-slate-600">📍 {evento.local}</p>}{evento.descricao && <p className="text-xs text-slate-600 whitespace-pre-line">{evento.descricao}</p>}</div>
             )) : <p className="text-xs text-slate-400 bg-slate-50 p-4 rounded-2xl">Nenhum evento publicado no momento.</p>}
           </section>
 
