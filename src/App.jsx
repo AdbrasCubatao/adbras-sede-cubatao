@@ -1311,6 +1311,8 @@ export default function App() {
                   <img src="/logo-geracao-teen.png" alt="Geração Teen — Departamento de Adolescentes" className="h-24 w-24 mx-auto object-contain" />
                 ) : dept.id === 'missoes' ? (
                   <img src="/logo-missoes.png" alt="Departamento de Missões — Eu sou parceiro de Missões" className="h-24 w-full object-contain bg-white rounded-2xl p-1" />
+                ) : dept.id === 'diaconal' ? (
+                  <img src="/logo-diaconal.png" alt="Diáconos e Diaconisas — AD Brás Cubatão" className="h-24 w-full object-contain bg-white rounded-2xl p-1" />
                 ) : dept.id === 'cibec' ? (
                   <img src="/logo-cibec.png" alt="CIBEC — Departamento de Mulheres" className="h-20 w-20 object-contain bg-white rounded-2xl p-2" />
                 ) : <span className="text-4xl">{dept.icon}</span>}
@@ -1335,6 +1337,8 @@ export default function App() {
                   <img src="/logo-geracao-teen.png" alt="Geração Teen — Departamento de Adolescentes" className="h-44 w-44 mx-auto object-contain" />
                 ) : departamentoSelecionado.id === 'missoes' ? (
                   <img src="/logo-missoes.png" alt="Departamento de Missões — Eu sou parceiro de Missões" className="w-full h-auto mx-auto object-contain bg-white rounded-2xl p-2" />
+                ) : departamentoSelecionado.id === 'diaconal' ? (
+                  <img src="/logo-diaconal.png" alt="Diáconos e Diaconisas — AD Brás Cubatão" className="w-full h-auto mx-auto object-contain bg-white rounded-2xl p-3" />
                 ) : departamentoSelecionado.id === 'cibec' ? (
               <img src="/logo-cibec.png" alt="CIBEC — Departamento de Mulheres" className="h-36 w-36 mx-auto object-contain bg-white rounded-3xl p-3" />
             ) : <span className="text-6xl">{departamentoSelecionado.icon}</span>}
