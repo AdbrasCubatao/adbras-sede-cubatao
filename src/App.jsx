@@ -1,5 +1,99 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import React, { useEffect, useRef, useState } from 'react';
+import './HomeBanners.css';
+
+export function HomeBanners({ supabase }) {
+  const [items, setItems] = useState([]);
+  const [index, setIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [manualPause, setManualPause] = useState(false);
+  const start = useRef(null);
+  useEffect(() => {
+    let alive = true;
+    const refresh = async () => {
+      const { data, error } = await supabase.from('home_banners').select('*').eq('active', true).order('display_order').order('created_at').order('id');
+      if (alive && !error) { setItems(data || []); setIndex(i => Math.min(i, Math.max(0, (data || []).length - 1))); }
+    };
+    refresh();
+    const timer = setInterval(() => { if (!document.hidden) refresh(); }, 60000);
+    const focus = () => { if (!document.hidden) refresh(); };
+    window.addEventListener('focus', focus);
+    document.addEventListener('visibilitychange', focus);
+    return () => { alive = false; clearInterval(timer); window.removeEventListener('focus', focus); document.removeEventListener('visibilitychange', focus); };
+  }, [supabase]);
+  useEffect(() => {
+    if (items.length < 2 || paused || manualPause) return;
+    const timer = setInterval(() => { if (!document.hidden && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) setIndex(i => (i + 1) % items.length); }, 6000);
+    return () => clearInterval(timer);
+  }, [items.length, paused, manualPause, index]);
+  const move = delta => setIndex(i => (i + delta + items.length) % items.length);
+  if (!items.length) return null;
+  return <section className="hb-carousel" aria-label="Divulgações da igreja" aria-roledescription="carrossel" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocus={() => setPaused(true)} onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setPaused(false); }}>
+    <div className="hb-window" onTouchStart={e => { start.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; setPaused(true); }} onTouchCancel={() => { start.current = null; setPaused(false); }} onTouchEnd={e => { const point = start.current; start.current = null; setPaused(false); if (!point || items.length < 2) return; const dx = e.changedTouches[0].clientX - point.x; const dy = e.changedTouches[0].clientY - point.y; if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)) move(dx < 0 ? 1 : -1); }}>
+      <div className="hb-track" style={{ transform: `translateX(-${index * 100}%)` }}>
+        {items.map((item, i) => <div className="hb-slide" key={item.id} aria-hidden={i !== index}><img src={item.image_url} alt={item.description ? `${item.title} — ${item.description}` : item.title} draggable="false" onError={() => setItems(rows => { const next = rows.filter(row => row.id !== item.id); setIndex(n => Math.min(n, Math.max(0, next.length - 1))); return next; })} /></div>)}
+      </div>
+    </div>
+    {items.length > 1 && <div className="hb-controls"><button type="button" aria-label="Banner anterior" onClick={() => move(-1)}>‹</button><div className="hb-dots">{items.map((item, i) => <button type="button" key={item.id} aria-label={`Mostrar banner ${i + 1}: ${item.title}`} aria-current={index === i ? 'true' : undefined} onClick={() => setIndex(i)}><span /></button>)}</div><button type="button" aria-label="Próximo banner" onClick={() => move(1)}>›</button><button type="button" aria-label={manualPause ? 'Retomar avanço automático' : 'Pausar avanço automático'} onClick={() => setManualPause(p => !p)}>{manualPause ? '▶' : 'Ⅱ'}</button></div>}
+  </section>;
+}
+
+const blank = () => ({ title: '', description: '', display_order: 1, active: true, image_url: '', image_path: null });
+const BUCKET = 'home-banners';
+export function AdminHomeBanners({ supabase }) {
+  const [rows, setRows] = useState([]), [form, setForm] = useState(blank), [id, setId] = useState(null);
+  const [file, setFile] = useState(null), [preview, setPreview] = useState(''), [busy, setBusy] = useState(false), [message, setMessage] = useState(''), [ready, setReady] = useState(false);
+  const input = useRef(null);
+  const refresh = async () => {
+    const { data, error } = await supabase.from('home_banners').select('*').order('display_order').order('created_at').order('id');
+    if (error) throw error;
+    setRows(data || []); setReady(true);
+  };
+  useEffect(() => { refresh().catch(error => setMessage(`Não foi possível carregar os banners: ${error.message}`)); }, [supabase]);
+  useEffect(() => { if (!file) { setPreview(''); return; } const url = URL.createObjectURL(file); setPreview(url); return () => URL.revokeObjectURL(url); }, [file]);
+  const reset = () => { setId(null); setForm(blank()); setFile(null); if (input.current) input.current.value = ''; };
+  const cleanup = async path => { if (!path) return; const { error } = await supabase.storage.from(BUCKET).remove([path]); if (error) throw new Error(`Registro salvo, mas não foi possível remover uma imagem antiga do Storage: ${error.message}`); };
+  const run = async action => { if (busy) return; setBusy(true); setMessage(''); try { await action(); await refresh(); setMessage('Banners atualizados!'); } catch (error) { setMessage(error.message); await refresh().catch(() => {}); } finally { setBusy(false); } };
+  const save = e => { e.preventDefault(); run(async () => {
+    if (!form.title.trim()) throw new Error('Informe o título.');
+    if (!id && !file) throw new Error('Selecione a imagem do banner.');
+    let image_url = form.image_url, image_path = form.image_path, uploaded = null;
+    if (file) {
+      const types = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+      if (!types[file.type] || file.size > 10 * 1024 * 1024) throw new Error('Use JPG, PNG ou WebP de até 10 MB.');
+      uploaded = `${crypto.randomUUID()}.${types[file.type]}`;
+      const { error } = await supabase.storage.from(BUCKET).upload(uploaded, file, { contentType: file.type, upsert: false });
+      if (error) throw error;
+      image_path = uploaded; image_url = supabase.storage.from(BUCKET).getPublicUrl(uploaded).data.publicUrl;
+    }
+    const payload = { title: form.title.trim(), description: form.description.trim(), display_order: Number(form.display_order), active: form.active, image_url, image_path };
+    const query = id ? supabase.from('home_banners').update(payload).eq('id', id) : supabase.from('home_banners').insert(payload);
+    const { data, error } = await query.select('id').single();
+    if (error || !data) { if (uploaded) await cleanup(uploaded); throw error || new Error('Não foi possível salvar.'); }
+    const old = form.image_path; reset(); if (uploaded && old) await cleanup(old);
+  }); };
+  const swap = (index, delta) => run(async () => { const next = [...rows]; [next[index], next[index + delta]] = [next[index + delta], next[index]]; const { error } = await supabase.rpc('reorder_home_banners', { ordered_ids: next.map(row => row.id) }); if (error) throw error; });
+  return <section className="hb-admin"><h3>📢 Banners da Home</h3><p>Envie a arte pronta. JPG, PNG ou WebP, até 10 MB. A imagem será exibida inteira.</p><p role="status">{message}</p>
+    <form onSubmit={save}><fieldset disabled={busy || !ready}>
+      <label>Título<input required maxLength={160} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></label>
+      <label>Descrição (opcional)<textarea maxLength={2000} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></label>
+      <label>Imagem<input ref={input} type="file" accept="image/jpeg,image/png,image/webp" onChange={e => setFile(e.target.files?.[0] || null)} /></label>
+      {(preview || form.image_url) && <img className="hb-preview" src={preview || form.image_url} alt="Prévia do banner" />}
+      <label>Ordem<input type="number" min="0" max="2147483647" step="1" required value={form.display_order} onChange={e => setForm({ ...form, display_order: e.target.value })} /></label>
+      <label className="hb-check"><input type="checkbox" checked={form.active} onChange={e => setForm({ ...form, active: e.target.checked })} />Ativo na Home</label>
+      <div className="hb-actions"><button type="submit">{busy ? 'Salvando…' : id ? 'Salvar alterações' : 'Adicionar banner'}</button><button type="button" onClick={reset}>Cancelar / limpar</button></div>
+    </fieldset></form>
+    {!ready && <button type="button" disabled={busy} onClick={() => run(async () => {})}>Tentar carregar novamente</button>}
+    {ready && !rows.length && <p>Nenhum banner cadastrado.</p>}
+    {rows.map((row, i) => <article key={row.id} className="hb-row"><img className="hb-preview" src={row.image_url} alt={row.title} /><strong>{row.title}</strong><p>Ordem {row.display_order} · {row.active ? 'Ativo' : 'Desativado'}</p><div className="hb-actions">
+      <button disabled={busy} onClick={() => { setId(row.id); setForm({ ...row, description: row.description || '' }); setFile(null); if (input.current) input.current.value = ''; }}>Editar</button>
+      <button disabled={busy} onClick={() => run(async () => { const { error } = await supabase.from('home_banners').update({ active: !row.active }).eq('id', row.id).select('id').single(); if (error) throw error; if (id === row.id) setForm(f => ({ ...f, active: !row.active })); })}>{row.active ? 'Desativar' : 'Ativar'}</button>
+      <button disabled={busy || i === 0} aria-label={`Subir ${row.title}`} onClick={() => swap(i, -1)}>↑ Subir</button><button disabled={busy || i === rows.length - 1} aria-label={`Descer ${row.title}`} onClick={() => swap(i, 1)}>↓ Descer</button>
+      <button disabled={busy} onClick={() => { if (window.confirm(`Excluir o banner “${row.title}”?`)) run(async () => { const { error } = await supabase.from('home_banners').delete().eq('id', row.id).select('id').single(); if (error) throw error; if (id === row.id) reset(); await cleanup(row.image_path); }); }}>Excluir</button>
+    </div></article>)}
+  </section>;
+}
 
 // Inicialização do Supabase com suas credenciais
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
