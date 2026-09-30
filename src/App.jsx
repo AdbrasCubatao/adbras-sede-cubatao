@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import React, { useEffect, useRef, useState } from 'react';
 import './HomeBanners.css';
 
 export function HomeBanners({ supabase }) {
@@ -1136,6 +1135,8 @@ export default function App() {
             <div className="cross-art">✝</div>
           </section>
 
+          <HomeBanners supabase={supabase} />
+
           <section className="quick-section">
             <div className="quick-title"><h2>Acesso Rápido</h2><span></span></div>
             <div className="quick-grid">
@@ -1242,6 +1243,7 @@ export default function App() {
 
               <AgendaCampo gestao departamentos={departamentos} aoSalvar={carregarDepartamentos} />
               {adminLogado && <>
+              <AdminHomeBanners supabase={supabase} />
               <LouvoresRadio admin />
               <PodcastIgreja admin />
               <MuralComunidade admin />
