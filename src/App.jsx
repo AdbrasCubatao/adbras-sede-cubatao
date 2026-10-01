@@ -940,6 +940,61 @@ export default function App() {
   const [novoNome, setNovoNome] = useState('');
   const [novoPedido, setNovoPedido] = useState('');
   const [isAnonimo, setIsAnonimo] = useState(false);
+  const [carregandoOracao, setCarregandoOracao] = useState(false);
+  const [salvandoOracao, setSalvandoOracao] = useState(false);
+  const [erroOracao, setErroOracao] = useState('');
+  const [avisoOracao, setAvisoOracao] = useState('');
+  const [apoioPendente, setApoioPendente] = useState(null);
+  const travaPublicacaoOracao = useRef(false);
+  const travaApoioOracao = useRef(false);
+  const versaoBuscaOracao = useRef(0);
+  const apoioLocalOracao = useRef(null);
+
+  const lerApoiosOracao = () => {
+    if (apoioLocalOracao.current) return apoioLocalOracao.current;
+    try {
+      const valor = JSON.parse(localStorage.getItem('adbras-oracao-apoios-v1') || '{}');
+      apoioLocalOracao.current = valor && typeof valor === 'object' && !Array.isArray(valor) ? valor : {};
+    } catch { apoioLocalOracao.current = {}; }
+    return apoioLocalOracao.current;
+  };
+
+  const carregarPedidosOracao = async () => {
+    const versao = ++versaoBuscaOracao.current;
+    setCarregandoOracao(true);
+    setErroOracao('');
+    try {
+      const { data, error } = await supabase.from('pedidos_oracao')
+        .select('id,nome,pedido,created_at,oracoes_count')
+        .order('created_at', { ascending: false }).limit(200);
+      if (error) throw error;
+      if (versao !== versaoBuscaOracao.current) return;
+      const apoios = lerApoiosOracao();
+      setPedidos((data || []).map(item => ({
+        ...item, data: new Date(item.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
+        oracoesCount: item.oracoes_count, orou: !!apoios[item.id]
+      })));
+    } catch (error) {
+      if (versao === versaoBuscaOracao.current)
+        setErroOracao(`Não foi possível carregar os pedidos. ${error.message || 'Tente novamente.'}`);
+    } finally {
+      if (versao === versaoBuscaOracao.current) setCarregandoOracao(false);
+    }
+  };
+
+  useEffect(() => {
+    if (paginaAtual !== 'oracao') return;
+    carregarPedidosOracao();
+    const atualizar = () => { if (!document.hidden) carregarPedidosOracao(); };
+    window.addEventListener('focus', atualizar);
+    const timer = setInterval(atualizar, 60000);
+    return () => {
+      ++versaoBuscaOracao.current;
+      clearInterval(timer);
+      window.removeEventListener('focus', atualizar);
+    };
+  }, [paginaAtual]);
+
 
   const [novaNome, setNovaNome] = useState('');
   const [novoEndereco, setNovoEndereco] = useState('');
@@ -1091,29 +1146,59 @@ export default function App() {
     alert('Conteúdo publicado com sucesso!');
   };
 
-  const handleAdicionarPedido = (e) => {
+  const handleAdicionarPedido = async (e) => {
     e.preventDefault();
-    if (!novoPedido.trim()) return;
-    const pedido = {
-      id: Date.now(),
-      nome: isAnonimo || !novoNome.trim() ? 'Membro Anônimo' : novoNome,
-      pedido: novoPedido,
-      data: 'Agora mesmo',
-      oracoesCount: 0,
-      orou: false,
-    };
-    setPedidos([pedido, ...pedidos]);
-    setNovoNome('');
-    setNovoPedido('');
-    setIsAnonimo(false);
+    if (!novoPedido.trim() || travaPublicacaoOracao.current) return;
+    travaPublicacaoOracao.current = true;
+    setSalvandoOracao(true); setErroOracao(''); setAvisoOracao('');
+    try {
+      const { data, error } = await supabase.from('pedidos_oracao').insert({
+        nome: isAnonimo || !novoNome.trim() ? 'Membro Anônimo' : novoNome.trim(),
+        pedido: novoPedido.trim()
+      }).select('id').single();
+      if (error) throw error;
+      if (!data?.id) throw new Error('O banco não confirmou a gravação.');
+      setNovoNome(''); setNovoPedido(''); setIsAnonimo(false);
+      setAvisoOracao('Pedido salvo. Vamos orar juntos!');
+      await carregarPedidosOracao();
+    } catch (error) {
+      setErroOracao(`Não foi possível confirmar a publicação. Seu texto foi mantido. ${error.message || ''}`);
+    } finally {
+      travaPublicacaoOracao.current = false;
+      setSalvandoOracao(false);
+    }
   };
 
-  const toggleOracao = (id) => {
-    setPedidos(pedidos.map((item) => item.id === id ? {
-      ...item,
-      oracoesCount: item.orou ? item.oracoesCount - 1 : item.oracoesCount + 1,
-      orou: !item.orou,
-    } : item));
+  const toggleOracao = async (id) => {
+    if (travaApoioOracao.current) return;
+    const item = pedidos.find(p => p.id === id);
+    if (!item) return;
+    travaApoioOracao.current = true;
+    setApoioPendente(id); setErroOracao('');
+    try {
+      let navegador = localStorage.getItem('adbras-oracao-navegador-v1');
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(navegador || '')) {
+        navegador = crypto.randomUUID();
+        localStorage.setItem('adbras-oracao-navegador-v1', navegador);
+      }
+      const apoiar = !item.orou;
+      const { data, error } = await supabase.rpc('definir_apoio_oracao', {
+        p_pedido: id, p_navegador: navegador, p_apoiar: apoiar
+      });
+      if (error) throw error;
+      const apoios = { ...lerApoiosOracao() };
+      if (apoiar) apoios[id] = true; else delete apoios[id];
+      apoioLocalOracao.current = apoios;
+      try { localStorage.setItem('adbras-oracao-apoios-v1', JSON.stringify(apoios)); } catch {}
+      ++versaoBuscaOracao.current;
+      setCarregandoOracao(false);
+      setPedidos(atual => atual.map(p => p.id === id ? { ...p, orou: apoiar, oracoesCount: data } : p));
+    } catch (error) {
+      setErroOracao(`Não foi possível registrar seu apoio. ${error.message || 'Verifique se o navegador permite armazenamento local.'}`);
+    } finally {
+      travaApoioOracao.current = false;
+      setApoioPendente(null);
+    }
   };
 
   return (
@@ -1374,16 +1459,22 @@ export default function App() {
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">← Voltar ao Menu Principal</button>
           <div className="bg-[#0B1E3B] text-white p-6 rounded-3xl text-center"><span className="text-4xl">🙏</span><h1 className="text-xl font-bold mt-2">Pedidos de Oração</h1></div>
           <form onSubmit={handleAdicionarPedido} className="bg-white p-5 rounded-3xl shadow-sm space-y-3">
-            <input disabled={isAnonimo} value={novoNome} onChange={(e) => setNovoNome(e.target.value)} placeholder="Seu nome (opcional)" className="w-full text-xs p-3 bg-slate-50 border rounded-xl" />
-            <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={isAnonimo} onChange={(e) => setIsAnonimo(e.target.checked)} /> Publicar anonimamente</label>
-            <textarea required rows="4" value={novoPedido} onChange={(e) => setNovoPedido(e.target.value)} placeholder="Escreva seu pedido..." className="w-full text-xs p-3 bg-slate-50 border rounded-xl"></textarea>
-            <button className="w-full bg-[#0B1E3B] text-white py-3 rounded-xl text-xs font-bold">Publicar Pedido</button>
+            <input maxLength={120} disabled={isAnonimo || salvandoOracao} value={novoNome} onChange={(e) => setNovoNome(e.target.value)} placeholder="Seu nome (opcional)" className="w-full text-xs p-3 bg-slate-50 border rounded-xl" />
+            <label className="flex items-center gap-2 text-xs"><input disabled={salvandoOracao} type="checkbox" checked={isAnonimo} onChange={(e) => setIsAnonimo(e.target.checked)} /> Publicar anonimamente</label>
+            <textarea disabled={salvandoOracao} maxLength={3000} required rows="4" value={novoPedido} onChange={(e) => setNovoPedido(e.target.value)} placeholder="Escreva seu pedido..." className="w-full text-xs p-3 bg-slate-50 border rounded-xl"></textarea>
+            <p className="text-xs text-slate-500">Seu pedido ficará visível para quem acessar o aplicativo. Compartilhe apenas o que deseja tornar público.</p>
+            <button disabled={salvandoOracao} className="w-full bg-[#0B1E3B] text-white py-3 rounded-xl text-xs font-bold disabled:opacity-50">{salvandoOracao ? 'Salvando…' : 'Publicar Pedido'}</button>
           </form>
+          {avisoOracao && <p role="status" className="text-sm text-emerald-800 bg-emerald-50 p-4 rounded-xl">{avisoOracao}</p>}
+          {erroOracao && <div role="alert" className="text-sm text-red-800 bg-red-50 p-4 rounded-xl">{erroOracao}<button type="button" onClick={carregarPedidosOracao} className="block underline mt-2">Atualizar lista</button></div>}
+          {carregandoOracao && <p role="status" className="text-sm text-slate-500">Atualizando pedidos…</p>}
+          {!carregandoOracao && !erroOracao && pedidos.length === 0 && <p className="text-sm text-slate-500 text-center">Ainda não há pedidos. Este espaço está aberto para você.</p>}
+          {pedidos.length >= 200 && <p className="text-xs text-slate-500">Exibindo os 200 pedidos mais recentes.</p>}
           {pedidos.map((item) => (
             <div key={item.id} className="bg-white p-4 rounded-2xl shadow-sm space-y-3">
               <div><p className="text-xs font-bold">{item.nome}</p><span className="text-[10px] text-slate-400">{item.data}</span></div>
               <p className="text-xs text-slate-700 italic">“{item.pedido}”</p>
-              <button onClick={() => toggleOracao(item.id)} className={`px-3 py-2 rounded-full text-xs font-bold ${item.orou ? 'bg-amber-400 text-slate-900' : 'bg-slate-100 text-slate-600'}`}>🙏 {item.orou ? 'Estou Orando' : 'Apoiar em Oração'} ({item.oracoesCount})</button>
+              <button disabled={apoioPendente !== null} onClick={() => toggleOracao(item.id)} className={`px-3 py-2 rounded-full text-xs font-bold ${item.orou ? 'bg-amber-400 text-slate-900' : 'bg-slate-100 text-slate-600'}`}>🙏 {apoioPendente === item.id ? 'Salvando…' : item.orou ? 'Estou Orando' : 'Apoiar em Oração'} ({item.oracoesCount})</button>
             </div>
           ))}
         </main>
