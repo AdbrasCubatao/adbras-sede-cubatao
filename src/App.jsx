@@ -2,6 +2,29 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import './HomeBanners.css';
 
+// Ícones vetoriais da Home: leves, nítidos e sem dependência adicional.
+function IconeHome({ nome, tamanho = '1em', cor = 'currentColor' }) {
+  const ouro = '#d7a83c';
+  const desenhos = {
+    biblia: <><path d="M12 6C9 3 5 3 2 5v14c4-2 7-1 10 1 3-2 6-3 10-1V5c-3-2-7-2-10 1Z"/><path d="M12 6v14"/><path stroke={ouro} d="M17 7v6m-2-4h4M4 17c2-.5 4 0 6 1m4 0c2-1 4-1.5 6-1"/></>,
+    agenda: <><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 10h18"/><path stroke={ouro} d="M7 14h1m4 0h1m4 0h1M7 18h1m4 0h1"/></>,
+    cultos: <><rect x="2" y="5" width="20" height="14" rx="3"/><path stroke={ouro} fill={ouro} strokeWidth="1" d="m10 9 6 3-6 3Z"/><path d="M8 22h8"/></>,
+    avisos: <><path d="m3 10 12-5v14L3 14Zm0 0v4M15 5l3-2v18l-3-2M6 15l2 6h3l-2-5"/><path stroke={ouro} d="M21 9c1 2 1 4 0 6"/></>,
+    oracao: <><path d="m12 18-5 4-4-4 4-5 2-7c.5-2 3-1 3 1v11Zm0 0 5 4 4-4-4-5-2-7c-.5-2-3-1-3 1"/><path stroke={ouro} d="M12 1v2M6 2l1 2m11-2-1 2M2 6l2 1m18-1-2 1"/></>,
+    ebd: <><path d="m2 8 10-5 10 5-10 5-10-5Zm4 2v7c4 3 8 3 12 0v-7"/><path stroke={ouro} d="M22 8v8M5 21h14"/></>,
+    louvores: <><path d="M9 17V5l11-2v12M9 9l11-2"/><ellipse cx="6" cy="18" rx="3" ry="3"/><ellipse stroke={ouro} cx="17" cy="16" rx="3" ry="3"/></>,
+    departamentos: <><circle cx="12" cy="7" r="3"/><path d="M6 21v-3a6 6 0 0 1 12 0v3Z"/><path stroke={ouro} d="M4 5a3 3 0 0 1 0 6m16-6a3 3 0 0 1 0 6M4 14a4 4 0 0 0-3 4v2h2m17-6a4 4 0 0 1 3 4v2h-2"/></>,
+    localizacao: <><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle stroke={ouro} cx="12" cy="10" r="3"/></>,
+    ofertas: <><path stroke={ouro} d="M12 10S5 6 7 3c2-2 4-1 5 1 1-2 3-3 5-1 2 3-5 7-5 7Z"/><path d="m2 17 4-3h6c3 0 3 3 0 3H9m5 0 5-3c3-1 4 2 2 3l-8 5-7-1-4 1"/></>,
+    contatos: <><path d="M6 3H3c-2 9 9 20 18 18v-4l-5-2-2 3c-3-1-7-5-8-8l3-2-3-5Z"/><path stroke={ouro} d="M15 3a7 7 0 0 1 6 6m-6-2a3 3 0 0 1 2 2"/></>,
+    podcast: <><rect x="8" y="2" width="8" height="13" rx="4"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/><path stroke={ouro} d="M11 6h2m-2 3h2"/></>,
+    mais: <><circle cx="4" cy="12" r="2"/><circle stroke={ouro} cx="12" cy="12" r="2"/><circle cx="20" cy="12" r="2"/></>
+  };
+  return <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={tamanho} height={tamanho}
+    fill="none" stroke={cor} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"
+    aria-hidden="true" focusable="false" style={{display:'block',flexShrink:0}}>{desenhos[nome] || desenhos.mais}</svg>;
+}
+
 export function HomeBanners({ supabase }) {
   const [items, setItems] = useState([]);
   const [index, setIndex] = useState(0);
@@ -804,7 +827,7 @@ function CultosYoutube(){
 function AtalhoPodcast({abrir}){
   const [visivel,setVisivel]=useState(false);
   useEffect(()=>{let ativo=true;supabase.from('podcast_episodios').select('id').eq('publicado',true).lte('data_publicacao',diaBrasilia()).limit(1).then(({data,error})=>{if(ativo)setVisivel(!error&&!!data?.length);});return()=>{ativo=false;};},[]);
-  return visivel?<button onClick={abrir} className="quick-item"><span className="quick-icon" aria-hidden="true">🎙️</span><span className="quick-label">Podcast</span></button>:null;
+  return visivel?<button onClick={abrir} className="quick-item"><span className="quick-icon" aria-hidden="true"><IconeHome nome="podcast" /></span><span className="quick-label">Podcast</span></button>:null;
 }
 function PodcastIgreja({admin=false}){
   const novo=()=>({titulo:'',descricao:'',tipo:'video',url:'',capa_url:'',data_publicacao:diaBrasilia(),publicado:false});
@@ -1521,7 +1544,6 @@ function IgrejaApp({ paginaInicial = 'home' }) {
           <section className="welcome-card">
             <img src="/pastores-edson-solange.jpg" alt="Pr. Edson Carlos da Silva e Missª. Solange Silva" />
             <div className="welcome-copy"><h1>Bem-vindo!</h1><p>Que sua vida seja edificada pela Palavra de Deus e pela comunhão com a nossa igreja.</p><em>Pr. Edson e Missª. Solange</em><strong>PRESIDENTES DO CAMPO</strong></div>
-            <div className="cross-art">✝</div>
           </section>
 
           <HomeBanners supabase={supabase} />
@@ -1553,7 +1575,7 @@ function IgrejaApp({ paginaInicial = 'home' }) {
                       boxShadow: '0 2px 6px #00142d26', boxSizing: 'border-box'
                     }}>{novosPedidosOracao > 99 ? '99+' : novosPedidosOracao}</span>
                   )}
-                  <span className="quick-icon">{item.icon}</span>
+                  <span className="quick-icon"><IconeHome nome={item.id} /></span>
                   <span className="quick-label">{item.titulo}</span>
                   {item.tag && <span className="live-tag">{item.tag}</span>}
                 </button>
@@ -1565,10 +1587,10 @@ function IgrejaApp({ paginaInicial = 'home' }) {
           <RedesIgreja />
           <CompartilharApp />
           <nav className="bottom-nav">
-            <button onClick={() => setPaginaAtual('biblia')}><span>▤</span>Bíblia</button>
-            <button onClick={() => setPaginaAtual('agenda')}><span>▦</span>Agenda</button>
-            <button onClick={() => setPaginaAtual('avisos')} style={{position:'relative'}} aria-label={novosAvisos ? `Avisos: ${novosAvisos} novos avisos` : 'Avisos'}><span>⚑</span>Avisos<BolinhaAvisos quantidade={novosAvisos} /></button>
-            <button onClick={() => setPaginaAtual('admin')}><span>•••</span>Mais</button>
+            <button onClick={() => setPaginaAtual('biblia')}><span><IconeHome nome="biblia" tamanho={24} /></span>Bíblia</button>
+            <button onClick={() => setPaginaAtual('agenda')}><span><IconeHome nome="agenda" tamanho={24} /></span>Agenda</button>
+            <button onClick={() => setPaginaAtual('avisos')} style={{position:'relative'}} aria-label={novosAvisos ? `Avisos: ${novosAvisos} novos avisos` : 'Avisos'}><span><IconeHome nome="avisos" tamanho={24} /></span>Avisos<BolinhaAvisos quantidade={novosAvisos} /></button>
+            <button onClick={() => setPaginaAtual('admin')}><span><IconeHome nome="mais" tamanho={24} /></span>Mais</button>
           </nav>
         </main>
       )}
