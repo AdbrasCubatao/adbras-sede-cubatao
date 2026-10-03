@@ -704,7 +704,9 @@ function AcessoSecretaria(){
 }
 
 const CATEGORIAS_MURAL=[['achados','🔎','Achados e perdidos'],['emprego','💼','Vagas de emprego'],['doacoes','🎁','Doações'],['ajuda','🤝','Pedidos de ajuda'],['comunicados','📢','Comunicados']];
-function MuralComunidade({admin=false}){
+function MuralComunidade({admin=false, aoCarregar}){
+  const aoCarregarRef = useRef(aoCarregar);
+  aoCarregarRef.current = aoCarregar;
   const novo=()=>({titulo:'',categoria:'comunicados',conteudo:'',contato:'',link:'',publicado_em:diaBrasilia(),ativo:true,resolvido:false});
   const [itens,setItens]=useState([]),[form,setForm]=useState(novo),[id,setId]=useState(null),[filtro,setFiltro]=useState('todos'),[busca,setBusca]=useState(''),[carregando,setCarregando]=useState(true),[ocupado,setOcupado]=useState(false),[erro,setErro]=useState(''),[mensagem,setMensagem]=useState('');
   const ref=React.useRef(null);
@@ -714,6 +716,7 @@ function MuralComunidade({admin=false}){
       let q=supabase.from('mural_comunidade').select('*').order('publicado_em',{ascending:false}).order('created_at',{ascending:false});
       if(!admin)q=q.eq('ativo',true).lte('publicado_em',diaBrasilia());
       const {data,error}=await q;if(error)throw error;setItens(data||[]);
+      if(!admin) aoCarregarRef.current?.(data||[]);
     }catch{setErro('Não foi possível carregar o mural. Tente novamente.');}finally{setCarregando(false);}
   }
   useEffect(()=>{carregar();},[admin]);
@@ -1011,9 +1014,86 @@ function useNovosPedidosOracao(aoReceberPedido) {
   return { quantidade, marcarLidos };
 }
 
+// Avisos lidos são identificados por ID: agendamentos e ativações não se perdem.
+function useNovosAvisos(paginaAtual) {
+  const chave = 'adbras-avisos-lidos-v1';
+  const ler = () => {
+    try {
+      const valor = JSON.parse(localStorage.getItem(chave) || '[]');
+      return new Set(Array.isArray(valor) ? valor.filter(id => typeof id === 'string') : []);
+    } catch { return new Set(); }
+  };
+  const lidos = useRef(null);
+  if (!lidos.current) lidos.current = ler();
+  const publicados = useRef([]);
+  const [quantidade, setQuantidade] = useState(0);
+  const contar = () => setQuantidade(publicados.current.filter(id => !lidos.current.has(id)).length);
+  const marcarLidos = itens => {
+    const unidos = new Set([...ler(), ...lidos.current]);
+    itens.forEach(item => unidos.add(item.id));
+    lidos.current = unidos;
+    try { localStorage.setItem(chave, JSON.stringify([...unidos])); } catch { /* Mantém nesta sessão. */ }
+    contar();
+  };
+  useEffect(() => {
+    let ativo = true, versao = 0;
+    const atualizar = async () => {
+      if (document.hidden) return;
+      const atual = ++versao;
+      try {
+        const ids = [];
+        // Paginação evita perder avisos quando o mural tiver muitos registros.
+        for (let inicio = 0; ; inicio += 1000) {
+          const { data, error } = await supabase.from('mural_comunidade').select('id')
+            .eq('ativo', true).lte('publicado_em', diaBrasilia()).order('id').range(inicio, inicio + 999);
+          if (!ativo || atual !== versao) return;
+          if (error) return;
+          ids.push(...(data || []).map(item => item.id));
+          if (!data || data.length < 1000) break;
+        }
+        publicados.current = ids;
+        contar();
+      } catch { /* Tenta novamente ao reconectar ou na próxima atualização. */ }
+    };
+    atualizar();
+    const canal = supabase.channel('home-novos-avisos')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'mural_comunidade' }, atualizar)
+      .subscribe(status => { if (status === 'SUBSCRIBED') atualizar(); });
+    const sincronizar = event => {
+      if (event.key === chave || event.key === null) { lidos.current = ler(); contar(); }
+    };
+    // Também detecta publicação agendada, que não gera alteração no banco na virada do dia.
+    const timer = setInterval(atualizar, 60000);
+    window.addEventListener('focus', atualizar);
+    window.addEventListener('online', atualizar);
+    window.addEventListener('storage', sincronizar);
+    document.addEventListener('visibilitychange', atualizar);
+    return () => {
+      ativo = false; ++versao; clearInterval(timer);
+      window.removeEventListener('focus', atualizar);
+      window.removeEventListener('online', atualizar);
+      window.removeEventListener('storage', sincronizar);
+      document.removeEventListener('visibilitychange', atualizar);
+      supabase.removeChannel(canal);
+    };
+  }, [paginaAtual]);
+  return { quantidade, marcarLidos };
+}
+
+function BolinhaAvisos({ quantidade }) {
+  if (!quantidade) return null;
+  return <span aria-hidden="true" style={{position:'absolute',top:5,right:5,minWidth:23,height:23,
+    padding:'0 5px',borderRadius:999,background:'#c62828',color:'#fff',display:'flex',
+    alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:800,lineHeight:1,
+    border:'2px solid #fff',boxSizing:'border-box',boxShadow:'0 2px 6px #00142d26'}}>
+    {quantidade > 99 ? '99+' : quantidade}
+  </span>;
+}
+
 function IgrejaApp({ paginaInicial = 'home' }) {
   // Estado de Navegação Central
   const [paginaAtual, setPaginaAtual] = useState(paginaInicial);
+  const { quantidade: novosAvisos, marcarLidos: marcarAvisosLidos } = useNovosAvisos(paginaAtual);
   const [departamentoSelecionado, setDepartamentoSelecionado] = useState(null);
   const [pixCopiado, setPixCopiado] = useState(false);
 
@@ -1460,8 +1540,10 @@ function IgrejaApp({ paginaInicial = 'home' }) {
                   className="quick-item"
                   style={{ position: 'relative' }}
                   aria-label={item.id === 'oracao' && novosPedidosOracao > 0
-                    ? `${item.titulo}: ${novosPedidosOracao} novos pedidos` : item.titulo}
+                    ? `${item.titulo}: ${novosPedidosOracao} novos pedidos`
+                    : item.id === 'avisos' && novosAvisos > 0 ? `${item.titulo}: ${novosAvisos} novos avisos` : item.titulo}
                 >
+                  {item.id === 'avisos' && <BolinhaAvisos quantidade={novosAvisos} />}
                   {item.id === 'oracao' && novosPedidosOracao > 0 && (
                     <span aria-hidden="true" style={{
                       position: 'absolute', top: 7, right: 7, minWidth: 23, height: 23,
@@ -1485,7 +1567,7 @@ function IgrejaApp({ paginaInicial = 'home' }) {
           <nav className="bottom-nav">
             <button onClick={() => setPaginaAtual('biblia')}><span>▤</span>Bíblia</button>
             <button onClick={() => setPaginaAtual('agenda')}><span>▦</span>Agenda</button>
-            <button onClick={() => setPaginaAtual('avisos')}><span>⚑</span>Avisos</button>
+            <button onClick={() => setPaginaAtual('avisos')} style={{position:'relative'}} aria-label={novosAvisos ? `Avisos: ${novosAvisos} novos avisos` : 'Avisos'}><span>⚑</span>Avisos<BolinhaAvisos quantidade={novosAvisos} /></button>
             <button onClick={() => setPaginaAtual('admin')}><span>•••</span>Mais</button>
           </nav>
         </main>
@@ -1686,7 +1768,7 @@ function IgrejaApp({ paginaInicial = 'home' }) {
       {paginaAtual === 'avisos' && (
         <main className="max-w-md mx-auto px-4 pt-6 space-y-5">
           <button onClick={() => setPaginaAtual('home')} className="text-xs font-bold text-slate-700 bg-white px-4 py-2 rounded-full shadow-sm">← Voltar ao Menu Principal</button>
-          <MuralComunidade />
+          <MuralComunidade aoCarregar={marcarAvisosLidos} />
         </main>
       )}
 
