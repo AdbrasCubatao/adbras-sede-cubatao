@@ -98,6 +98,158 @@ export function AdminHomeBanners({ supabase }) {
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+// Recuperação de senha: captura o retorno antes de o Supabase consumir a URL.
+const retornoSenha = (() => {
+  const url = new URL(window.location.href);
+  const hash = new URLSearchParams(url.hash.slice(1));
+  return {
+    solicitado: url.searchParams.get('recuperar-senha') === '1' || hash.get('type') === 'recovery',
+    erro: hash.has('error') || hash.has('error_code') || url.searchParams.has('error') || url.searchParams.has('error_code')
+  };
+})();
+
+function mensagemErroSenha(error, envio = false) {
+  const codigo = error?.code || '';
+  if (error?.status === 429 || /rate_limit|over_email_send_rate_limit/.test(codigo))
+    return 'O limite de tentativas foi atingido. Aguarde antes de tentar novamente.';
+  if (codigo === 'same_password') return 'Escolha uma senha diferente da senha atual.';
+  if (codigo === 'weak_password') return 'Essa senha não atende aos requisitos. Use uma senha mais forte, com letras maiúsculas, minúsculas, números e símbolos.';
+  if (codigo === 'reauthentication_needed') return 'Solicite um novo link de recuperação e tente novamente.';
+  if (/otp_expired|session_not_found|refresh_token_not_found|bad_jwt/.test(codigo))
+    return 'Este link expirou ou já foi utilizado. Solicite um novo link.';
+  return envio
+    ? 'Não foi possível enviar o e-mail agora. Tente mais tarde. Se persistir, peça ao administrador para conferir o serviço de e-mail no Supabase.'
+    : 'Não foi possível alterar a senha. Tente novamente ou solicite um novo link.';
+}
+
+function SolicitarNovaSenha({ emailInicial = '', aoVoltar }) {
+  const [email, setEmail] = useState(emailInicial);
+  const [ocupado, setOcupado] = useState(false);
+  const [mensagem, setMensagem] = useState('');
+  const [erro, setErro] = useState('');
+  const [espera, setEspera] = useState(0);
+  const trava = useRef(false);
+  useEffect(() => {
+    if (!espera) return;
+    const timer = setTimeout(() => setEspera(n => Math.max(0, n - 1)), 1000);
+    return () => clearTimeout(timer);
+  }, [espera]);
+  async function enviar(event) {
+    event.preventDefault();
+    if (trava.current || espera > 0) return;
+    trava.current = true; setOcupado(true); setErro(''); setMensagem('');
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/?recuperar-senha=1`
+      });
+      if (error) throw error;
+      setMensagem('Se este e-mail estiver cadastrado, você receberá um link para criar uma nova senha. Confira também a pasta de spam e use o e-mail mais recente.');
+      setEspera(60);
+    } catch (error) {
+      setErro(mensagemErroSenha(error, true));
+      if (error?.status === 429) setEspera(60);
+    } finally { trava.current = false; setOcupado(false); }
+  }
+  return <section className="bg-white p-6 rounded-3xl shadow-sm space-y-4">
+    <h2 className="text-xl font-bold text-[#061d3b]">Esqueci minha senha</h2>
+    <p className="text-sm text-slate-600">Informe o e-mail usado no acesso de administrador ou da secretaria.</p>
+    <form onSubmit={enviar} className="space-y-4">
+      <label className="block text-sm">E-mail de acesso
+        <input required type="email" autoComplete="email" maxLength={254} disabled={ocupado} value={email} onChange={e => setEmail(e.target.value)} className="mt-1 w-full p-3 border rounded-xl" />
+      </label>
+      <button disabled={ocupado || espera > 0} className="w-full bg-[#061d3b] text-white p-3 rounded-xl font-bold disabled:opacity-50">{ocupado ? 'Enviando…' : espera > 0 ? `Reenviar em ${espera}s` : 'Enviar link de recuperação'}</button>
+    </form>
+    {mensagem && <p role="status" className="text-sm text-emerald-800 bg-emerald-50 p-3 rounded-xl">{mensagem}</p>}
+    {erro && <p role="alert" className="text-sm text-red-800 bg-red-50 p-3 rounded-xl">{erro}</p>}
+    <button type="button" disabled={ocupado} onClick={aoVoltar} className="text-sm underline text-[#061d3b]">Voltar ao login</button>
+  </section>;
+}
+
+function RedefinirSenha({ aoVoltar }) {
+  const [estado, setEstado] = useState('verificando');
+  const [senha, setSenha] = useState('');
+  const [confirmacao, setConfirmacao] = useState('');
+  const [mostrar, setMostrar] = useState(false);
+  const [erro, setErro] = useState('');
+  const [ocupado, setOcupado] = useState(false);
+  const [solicitar, setSolicitar] = useState(false);
+  const usuarioValidado = useRef(null);
+  const trava = useRef(false);
+  useEffect(() => {
+    let ativo = true;
+    async function verificar() {
+      try {
+        // getSession aguarda a inicialização e o processamento automático do link.
+        const { data, error } = await supabase.auth.getSession();
+        if (retornoSenha.erro || error || !data.session) throw new Error('Link inválido');
+        const resposta = await supabase.auth.getUser();
+        if (resposta.error || !resposta.data.user) throw new Error('Sessão inválida');
+        if (ativo) { usuarioValidado.current = resposta.data.user.id; setEstado('pronto'); }
+      } catch { if (ativo) setEstado('invalido'); }
+    }
+    verificar();
+    return () => { ativo = false; };
+  }, []);
+  async function salvar(event) {
+    event.preventDefault();
+    if (trava.current) return;
+    setErro('');
+    if (senha.length < 8) { setErro('Use pelo menos 8 caracteres.'); return; }
+    if (senha !== confirmacao) { setErro('As senhas não são iguais. Confira os dois campos.'); return; }
+    trava.current = true; setOcupado(true);
+    try {
+      const validacao = await supabase.auth.getUser();
+      if (validacao.error || !validacao.data.user || validacao.data.user.id !== usuarioValidado.current) {
+        setEstado('invalido'); return;
+      }
+      const { error } = await supabase.auth.updateUser({ password: senha });
+      if (error) throw error;
+      setSenha(''); setConfirmacao(''); setEstado('concluido');
+      // O retorno ao painel passa novamente pelo login e pela checagem de permissões.
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch (error) { setErro(mensagemErroSenha(error)); }
+    finally { trava.current = false; setOcupado(false); }
+  }
+  if (solicitar) return <SolicitarNovaSenha aoVoltar={aoVoltar} />;
+  return <section className="bg-white p-6 rounded-3xl shadow-sm space-y-4">
+    <h1 className="text-xl font-bold text-[#061d3b]">Criar nova senha</h1>
+    {estado === 'verificando' && <p role="status" className="text-sm">Verificando seu link…</p>}
+    {estado === 'invalido' && <><p role="alert" className="text-sm text-slate-600">Não foi possível validar este link. Ele pode ter expirado ou já ter sido utilizado.</p><button onClick={() => setSolicitar(true)} className="w-full bg-[#061d3b] text-white p-3 rounded-xl">Solicitar novo link</button></>}
+    {estado === 'pronto' && <form onSubmit={salvar} className="space-y-4">
+      <p className="text-sm text-slate-600">Escolha sua nova senha de acesso. Use pelo menos 8 caracteres.</p>
+      <label className="block text-sm">Nova senha<input required minLength={8} maxLength={128} autoComplete="new-password" type={mostrar ? 'text' : 'password'} disabled={ocupado} value={senha} onChange={e => setSenha(e.target.value)} className="block w-full mt-1 p-3 border rounded-xl" /></label>
+      <label className="block text-sm">Confirme a nova senha<input required minLength={8} maxLength={128} autoComplete="new-password" type={mostrar ? 'text' : 'password'} disabled={ocupado} value={confirmacao} onChange={e => setConfirmacao(e.target.value)} className="block w-full mt-1 p-3 border rounded-xl" /></label>
+      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={mostrar} onChange={e => setMostrar(e.target.checked)} />Mostrar senhas</label>
+      <button disabled={ocupado} className="w-full bg-[#061d3b] text-white p-3 rounded-xl font-bold disabled:opacity-50">{ocupado ? 'Salvando…' : 'Salvar nova senha'}</button>
+    </form>}
+    {estado === 'concluido' && <p role="status" className="text-sm text-emerald-800 bg-emerald-50 p-3 rounded-xl">Senha alterada com sucesso! Entre no painel usando a nova senha.</p>}
+    {erro && <p role="alert" className="text-sm text-red-800 bg-red-50 p-3 rounded-xl">{erro}</p>}
+    <button disabled={ocupado} type="button" onClick={aoVoltar} className="text-sm underline text-[#061d3b]">Voltar ao login</button>
+  </section>;
+}
+
+export default function App() {
+  const [recuperando, setRecuperando] = useState(retornoSenha.solicitado || retornoSenha.erro);
+  const [iniciarNoLogin, setIniciarNoLogin] = useState(false);
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange(evento => {
+      if (evento === 'PASSWORD_RECOVERY') setRecuperando(true);
+    });
+    return () => data.subscription.unsubscribe();
+  }, []);
+  async function voltar() {
+    // Limpa apenas os parâmetros de autenticação da barra de endereço.
+    const url = new URL(window.location.href);
+    ['recuperar-senha', 'code', 'error', 'error_code', 'error_description'].forEach(chave => url.searchParams.delete(chave));
+    url.hash = '';
+    window.history.replaceState({}, '', url.pathname + url.search);
+    await supabase.auth.signOut({ scope: 'local' });
+    setIniciarNoLogin(true); setRecuperando(false);
+  }
+  if (recuperando) return <main className="min-h-screen bg-[#F4F5F7] px-4 py-10 text-slate-800 font-sans"><div className="max-w-md mx-auto"><RedefinirSenha aoVoltar={voltar} /></div></main>;
+  return <IgrejaApp paginaInicial={iniciarNoLogin ? 'admin' : 'home'} />;
+}
+
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const diaBrasilia = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
@@ -793,9 +945,9 @@ function CompartilharApp() {
   </section>;
 }
 
-export default function App() {
+function IgrejaApp({ paginaInicial = 'home' }) {
   // Estado de Navegação Central
-  const [paginaAtual, setPaginaAtual] = useState('home');
+  const [paginaAtual, setPaginaAtual] = useState(paginaInicial);
   const [departamentoSelecionado, setDepartamentoSelecionado] = useState(null);
   const [pixCopiado, setPixCopiado] = useState(false);
 
@@ -812,6 +964,7 @@ export default function App() {
   const [acessoCarregando,setAcessoCarregando]=useState(true);
   const [emailAdmin, setEmailAdmin] = useState('');
   const [senhaAdmin, setSenhaAdmin] = useState('');
+  const [esqueciSenha, setEsqueciSenha] = useState(false);
   const [departamentoAdmin, setDepartamentoAdmin] = useState('ujademc');
   const [tipoCadastroDept, setTipoCadastroDept] = useState('lideranca');
   const [salvandoDept, setSalvandoDept] = useState(false);
@@ -1306,7 +1459,7 @@ export default function App() {
             ← Voltar ao Menu Principal
           </button>
 
-          {acessoCarregando ? <p role="status">Verificando acesso…</p> : !adminLogado && !secretariaLogada ? (
+          {acessoCarregando ? <p role="status">Verificando acesso…</p> : !adminLogado && !secretariaLogada ? (esqueciSenha ? <SolicitarNovaSenha emailInicial={emailAdmin} aoVoltar={() => setEsqueciSenha(false)} /> : (
             <div className="bg-white p-6 rounded-3xl shadow-sm space-y-4 text-center">
               <span className="text-4xl">🔐</span>
               <h2 className="text-lg font-bold text-slate-900">Acesso administrativo / Secretaria</h2>
@@ -1315,8 +1468,9 @@ export default function App() {
                 <input type="password" placeholder="Digite a senha de acesso" value={senhaAdmin} onChange={(e) => setSenhaAdmin(e.target.value)} className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl text-center font-bold" />
                 <button type="submit" className="w-full bg-[#0B1E3B] text-white py-3 rounded-xl font-bold text-xs shadow-md">Entrar no Painel</button>
               </form>
+              <button type="button" onClick={() => { setSenhaAdmin(''); setEsqueciSenha(true); }} className="text-sm underline text-[#061d3b]">Esqueci minha senha</button>
             </div>
-          ) : (
+          )) : (
             <div className="space-y-5">
               <div className="bg-white p-5 rounded-3xl shadow-sm flex items-center justify-between">
                 <div>
