@@ -945,6 +945,72 @@ function CompartilharApp() {
   </section>;
 }
 
+// Contador de pedidos ainda não vistos neste navegador.
+function useNovosPedidosOracao(aoReceberPedido) {
+  const chave = 'adbras-oracao-ultima-leitura-v1';
+  const [ultimaLeitura, setUltimaLeitura] = useState(() => {
+    try {
+      const valor = localStorage.getItem(chave);
+      return valor && Number.isFinite(Date.parse(valor)) ? valor : '1970-01-01T00:00:00.000Z';
+    } catch { return '1970-01-01T00:00:00.000Z'; }
+  });
+  const [quantidade, setQuantidade] = useState(0);
+  const receberRef = useRef(aoReceberPedido);
+  receberRef.current = aoReceberPedido;
+
+  const marcarLidos = (dataMaisRecente) => {
+    if (!dataMaisRecente || !Number.isFinite(Date.parse(dataMaisRecente))) return;
+    setUltimaLeitura(anterior => {
+      if (Date.parse(dataMaisRecente) < Date.parse(anterior)) return anterior;
+      try { localStorage.setItem(chave, dataMaisRecente); } catch { /* Armazenamento indisponível. */ }
+      return dataMaisRecente;
+    });
+  };
+
+  useEffect(() => {
+    let ativo = true;
+    let versao = 0;
+    const atualizar = async () => {
+      if (document.hidden) return;
+      const atual = ++versao;
+      try {
+        const { count, error } = await supabase.from('pedidos_oracao')
+          .select('id', { count: 'exact', head: true }).gt('created_at', ultimaLeitura);
+        if (ativo && atual === versao && !error) setQuantidade(count || 0);
+      } catch { /* Mantém o contador e tenta novamente na próxima atualização. */ }
+    };
+    atualizar();
+    const canal = supabase.channel('home-novos-pedidos-oracao')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pedidos_oracao' }, () => {
+        atualizar();
+        if (!document.hidden) receberRef.current?.();
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'pedidos_oracao' }, atualizar)
+      .subscribe(status => { if (status === 'SUBSCRIBED') atualizar(); });
+    const sincronizarLeitura = event => {
+      if (event.key !== chave && event.key !== null) return;
+      const valor = event.newValue;
+      setUltimaLeitura(valor && Number.isFinite(Date.parse(valor)) ? valor : '1970-01-01T00:00:00.000Z');
+    };
+    const timer = setInterval(atualizar, 60000);
+    window.addEventListener('focus', atualizar);
+    window.addEventListener('online', atualizar);
+    window.addEventListener('storage', sincronizarLeitura);
+    document.addEventListener('visibilitychange', atualizar);
+    return () => {
+      ativo = false;
+      ++versao;
+      clearInterval(timer);
+      window.removeEventListener('focus', atualizar);
+      window.removeEventListener('online', atualizar);
+      window.removeEventListener('storage', sincronizarLeitura);
+      document.removeEventListener('visibilitychange', atualizar);
+      supabase.removeChannel(canal);
+    };
+  }, [ultimaLeitura]);
+  return { quantidade, marcarLidos };
+}
+
 function IgrejaApp({ paginaInicial = 'home' }) {
   // Estado de Navegação Central
   const [paginaAtual, setPaginaAtual] = useState(paginaInicial);
@@ -1102,6 +1168,10 @@ function IgrejaApp({ paginaInicial = 'home' }) {
   const travaApoioOracao = useRef(false);
   const versaoBuscaOracao = useRef(0);
   const apoioLocalOracao = useRef(null);
+  const { quantidade: novosPedidosOracao, marcarLidos: marcarPedidosLidos } = useNovosPedidosOracao(() => {
+    if (paginaAtual === 'oracao') carregarPedidosOracao();
+  });
+
 
   const lerApoiosOracao = () => {
     if (apoioLocalOracao.current) return apoioLocalOracao.current;
@@ -1127,6 +1197,7 @@ function IgrejaApp({ paginaInicial = 'home' }) {
         ...item, data: new Date(item.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
         oracoesCount: item.oracoes_count, orou: !!apoios[item.id]
       })));
+      if (data?.length) marcarPedidosLidos(data[0].created_at);
     } catch (error) {
       if (versao === versaoBuscaOracao.current)
         setErroOracao(`Não foi possível carregar os pedidos. ${error.message || 'Tente novamente.'}`);
@@ -1387,7 +1458,19 @@ function IgrejaApp({ paginaInicial = 'home' }) {
                     setDepartamentoSelecionado(null);
                   }}
                   className="quick-item"
+                  style={{ position: 'relative' }}
+                  aria-label={item.id === 'oracao' && novosPedidosOracao > 0
+                    ? `${item.titulo}: ${novosPedidosOracao} novos pedidos` : item.titulo}
                 >
+                  {item.id === 'oracao' && novosPedidosOracao > 0 && (
+                    <span aria-hidden="true" style={{
+                      position: 'absolute', top: 7, right: 7, minWidth: 23, height: 23,
+                      padding: '0 5px', borderRadius: 999, background: '#c62828', color: '#fff',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 11, fontWeight: 800, lineHeight: 1, border: '2px solid #fff',
+                      boxShadow: '0 2px 6px #00142d26', boxSizing: 'border-box'
+                    }}>{novosPedidosOracao > 99 ? '99+' : novosPedidosOracao}</span>
+                  )}
                   <span className="quick-icon">{item.icon}</span>
                   <span className="quick-label">{item.titulo}</span>
                   {item.tag && <span className="live-tag">{item.tag}</span>}
