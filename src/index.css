@@ -63,3 +63,9 @@ a {
 .church-home .home-pastores{position:absolute;right:-3%;bottom:21px;width:55%;height:253px;object-fit:cover;object-position:center top;mix-blend-mode:lighten;z-index:1;mask-image:linear-gradient(to bottom,#000 90%,transparent);-webkit-mask-image:linear-gradient(to bottom,#000 90%,transparent)}
 .church-home .home-gold-wave{position:absolute;bottom:-1px;left:0;width:100%;height:45px;z-index:3}
 @media(max-width:360px){.church-home .church-hero{height:265px}.church-home .brand-lockup{top:17px;height:200px}.church-home .brand-lockup p{font-size:11px}.church-home .home-pastores{height:225px}}
+
+/* Ajuste do logo e da frase, sem sobrepor os pastores */
+.church-home .brand-lockup {
+  left: 2%;
+  width: 44%;
+}
