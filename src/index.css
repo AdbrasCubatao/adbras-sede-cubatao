@@ -31,3 +31,35 @@ a {
 .social-section{text-align:center;padding:0 22px}.social-section h2{font-size:18px;margin:0 0 12px}.social-section>div{display:flex;justify-content:center;gap:25px}.social-section a{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:white;text-decoration:none;font-size:24px;font-weight:900}.social-section a:nth-child(1){background:#25d366}.social-section a:nth-child(2){background:linear-gradient(135deg,#6b3ad4,#e43576,#f7b43b)}.social-section a:nth-child(3){background:#f10e16}.social-section a:nth-child(4){background:#2475df}
 .bottom-nav{position:fixed;z-index:20;left:50%;bottom:0;transform:translateX(-50%);width:min(430px,100%);height:76px;background:var(--navy);border-radius:24px 24px 0 0;display:grid;grid-template-columns:repeat(4,1fr);padding:8px 8px max(8px,env(safe-area-inset-bottom));box-shadow:0 -5px 20px #00142d24}.bottom-nav button{border:0;background:transparent;color:white;font-size:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}.bottom-nav span{font-size:23px;line-height:1}
 @media(max-width:380px){.church-hero{height:285px}.official-logo{width:260px}.brand-lockup p{font-size:13px}.welcome-card{margin-left:14px;margin-right:14px;padding-left:138px}.welcome-card>img{width:114px;height:140px}.welcome-copy h1{font-size:20px}.welcome-copy em{font-size:16px}.quick-section{padding:0 14px}.quick-grid{gap:8px}.quick-item{min-height:108px}.quick-icon{font-size:33px}.verse-banner{margin-left:14px;margin-right:14px}}
+
+/* Aparência da Home. As medidas originais dos componentes são preservadas. */
+.church-home{background:radial-gradient(ellipse at 100% 35%,#1d5183 0,transparent 55%),linear-gradient(180deg,#071e3a,#103865 38%,#071e3a);color:#fff}
+.church-home .hb-carousel{background:#071e3a;color:#fff;box-shadow:0 9px 24px #0005}
+.church-home .hb-slide{background:#061b34}
+.church-home .hb-controls{background:#10345b}
+.church-home .hb-controls button{color:#f5da99}
+.church-home .hb-dots span{background:#6480a3}
+.church-home .hb-dots button[aria-current=true] span{background:#efbb42;box-shadow:0 0 8px #efbb4255}
+.church-home .quick-title h2{color:#f3dfb0}
+.church-home .quick-title span{background:linear-gradient(90deg,#d7a83c,transparent)}
+.church-home .quick-item{background:linear-gradient(145deg,#10365c,#041b35);box-shadow:inset 0 0 0 1px #d5b77965,0 4px 9px #0003;color:#fff}
+.church-home .quick-item:hover{box-shadow:inset 0 0 0 1px #eac56b,0 4px 9px #0003}
+.church-home .quick-item:focus-visible,.church-home .bottom-nav button:focus-visible{outline:2px solid #f2c75f;outline-offset:3px}
+.church-home .quick-icon{color:#fff1ce;filter:drop-shadow(0 0 3px #e9b64c66)}
+.church-home .live-tag{background:#e3b74e;color:#061d3b}
+.church-home .verse-banner{background:radial-gradient(ellipse at top left,#66513066,transparent 70%),linear-gradient(110deg,#092743,#04162c);box-shadow:inset 0 -3px 0 #d7a83c,0 7px 20px #0003}
+.church-home .verse-banner h2{color:#f0cd7e}
+.church-home .verse-banner strong{color:#efc35c}
+.church-home .verse-banner a{color:#d9e6f3}
+.church-home .social-section h2{color:#f2dfb6}
+.church-home .bottom-nav{background:linear-gradient(180deg,#061d38,#021126);box-shadow:inset 0 1px 0 #d7a83c66,0 -6px 24px #0005}
+.church-home .bottom-nav button{color:#f5ebd2}
+
+/* Nova composição apenas do cabeçalho. */
+.church-home .church-hero{height:302px;padding:0;isolation:isolate;background:radial-gradient(ellipse at 83% 22%,#37557555,transparent 55%),linear-gradient(120deg,#03172e,#082c51);overflow:hidden}
+.church-home .brand-lockup{position:absolute;left:5%;top:30px;width:52%;height:220px;padding:0;z-index:2;justify-content:center}
+.church-home .official-logo{width:100%;max-width:100%;height:auto}
+.church-home .brand-lockup p{font-size:13px;line-height:1.65;margin-top:12px;color:#fff}
+.church-home .home-pastores{position:absolute;right:-3%;bottom:21px;width:55%;height:253px;object-fit:cover;object-position:center top;mix-blend-mode:lighten;z-index:1;mask-image:linear-gradient(to bottom,#000 90%,transparent);-webkit-mask-image:linear-gradient(to bottom,#000 90%,transparent)}
+.church-home .home-gold-wave{position:absolute;bottom:-1px;left:0;width:100%;height:45px;z-index:3}
+@media(max-width:360px){.church-home .church-hero{height:265px}.church-home .brand-lockup{top:17px;height:200px}.church-home .brand-lockup p{font-size:11px}.church-home .home-pastores{height:225px}}
