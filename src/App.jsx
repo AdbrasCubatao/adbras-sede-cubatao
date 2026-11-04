@@ -1539,12 +1539,9 @@ function IgrejaApp({ paginaInicial = 'home' }) {
               <img src="/logo-adbras-cubatao-refinado.png" alt="AD Brás Cubatão" className="official-logo" />
               <p>Uma Igreja que Ama,<br />Serve e Anuncia Jesus!</p>
             </div>
+            <img className="home-pastores" src="/pastores-edson-solange.jpg" alt="Pr. Edson Carlos da Silva e Missª. Solange Silva, presidentes do Campo" />
+            <svg className="home-gold-wave" viewBox="0 0 430 54" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="home-wave-gold"><stop stopColor="#fff1be"/><stop offset=".55" stopColor="#d7a83c"/><stop offset="1" stopColor="#f6ce68"/></linearGradient></defs><path d="M0 8Q300 78 430 6V54H0Z" fill="url(#home-wave-gold)"/><path d="M0 20Q300 84 430 20V54H0Z" fill="#103865"/></svg>
           </header>
-
-          <section className="welcome-card">
-            <img src="/pastores-edson-solange.jpg" alt="Pr. Edson Carlos da Silva e Missª. Solange Silva" />
-            <div className="welcome-copy"><h1>Bem-vindo!</h1><p>Que sua vida seja edificada pela Palavra de Deus e pela comunhão com a nossa igreja.</p><em>Pr. Edson e Missª. Solange</em><strong>PRESIDENTES DO CAMPO</strong></div>
-          </section>
 
           <HomeBanners supabase={supabase} />
 
